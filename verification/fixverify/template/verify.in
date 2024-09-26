@@ -1,0 +1,96 @@
+### Some general info
+units           si     
+dimension       2       
+boundary        p p p   
+
+#---------------------------------------------------------------------
+# Specify atoms and bond attributes (tells lammps what to store)
+#---------------------------------------------------------------------
+#atom_style      hybrid bond sphere	# bond to store topology, sphere to store radii
+#special_bonds 	lj 1 1 1 coul 1 1 1
+#newton          on off
+
+atom_style      bond
+special_bonds 	lj 1 1 1 coul 1 1 1
+newton          on off
+
+#---------------------------------------------------------------------
+# Read in data from .dat file
+#---------------------------------------------------------------------
+read_data      verify_nobonds.dat extra/bond/per/atom 6 extra/special/per/atom 100
+
+
+#---------------------------------------------------------------------
+# Simulation Parameters
+#---------------------------------------------------------------------
+variable        dt equal 0.01   
+variable        Nrun equal 200000
+variable        nout equal 1
+mass            * 1e-6
+
+#---------------------------------------------------------------------
+# Communication lengthscales
+#---------------------------------------------------------------------
+variable        ell equal 0.0625
+variable        Lcrit equal 0.05
+
+#---------------------------------------------------------------------
+# Kinetic Parameters
+#---------------------------------------------------------------------
+variable        ka equal 10
+variable        kd equal 0.1
+variable        Lmax equal $(v_ell*0.8)	
+
+#---------------------------------------------------------------------
+# Define bond properties (linear springs)
+#---------------------------------------------------------------------
+variable        Energy equal 3.0
+variable        R0 equal 0
+bond_style      harmonic
+bond_coeff      1 ${Energy} ${R0} 
+
+#---------------------------------------------------------------------
+# Define pairwise repulsion
+#---------------------------------------------------------------------
+pair_style      zero $(v_ell)
+pair_coeff      * * #zero $(v_Lcrit*2.0)
+
+#############################################
+##### Initialize particles and bond topology
+#############################################
+
+# for inter-processor communication
+neighbor        ${ell} bin
+neigh_modify    page 1000000 one 100000 #exclude molecule/intra all
+
+# Compute bond informations
+compute         1 all property/local btype batom1 batom2
+compute         2 all bond/local dist force engpot
+compute         4 all reduce max c_2[1] inputs local
+compute         5 all reduce sum c_1[1] inputs local
+compute         6 all reduce sum c_2[2] inputs local
+variable        vbonds equal c_5
+variable        vforce equal c_6
+
+# Compute Timestep
+variable        tauh equal $(1/(v_ka+v_kd))
+## Outputs
+variable        vtime equal time
+fix             printS all print 1 "${vtime} ${vbonds} ${vforce}" file force.out screen no title ""
+run             0
+unfix           printS
+
+thermo          10000
+
+### First outputs to files ###
+fix             dynamics all bond/dynamic 1 1 1 ${ka} ${kd} ${Lmax} seed 7949 catch 0.05 0.03 0
+#fix             integrate all nve  
+fix             printS all print 1 "${vtime} ${vbonds} ${vforce}" append force.out screen no title "" 
+dump            mydump all custom ${nout} atoms.dump id type mol x y
+dump 		    bondsdump all local ${nout} bonds.dump c_1[*] c_2[*]
+dump_modify     mydump first yes
+dump_modify     bondsdump first yes
+
+### Run Simulation ##
+timestep        ${dt} #$(v_tauh/10)
+run             ${Nrun}

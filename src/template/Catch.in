@@ -1,0 +1,248 @@
+### Some general info
+units           si     
+dimension       2       
+boundary        f s p
+
+#---------------------------------------------------------------------
+# Specify atoms and bond attributes (tells lammps what to store)
+#---------------------------------------------------------------------
+atom_style      bpm/sphere
+special_bonds 	lj 1 1 1 coul 1 1 1
+newton          on off
+
+#---------------------------------------------------------------------
+# Read in data from .dat file
+#---------------------------------------------------------------------
+read_data       CatchAtoms_small.dat extra/bond/per/atom 6 extra/special/per/atom 100
+
+#---------------------------------------------------------------------
+# Simulation parameters
+#---------------------------------------------------------------------
+#variable        Nevery equal 40000
+#variable        Nkin equal $(floor(v_Nevery/5.0))
+#variable        nout equal 100
+
+variable        chi equal 0.005 # Damping multiplier
+variable        alpha equal 0.1  # Timestep multiplier 
+
+variable        xi equal 0.0014   # Mesh size
+
+#---------------------------------------------------------------------
+# Communication lengthscales
+#---------------------------------------------------------------------
+variable        ell equal $(v_xi*1.5)      #was 2.5
+variable        Lmax equal $(v_xi*2.0)		# Maximum dynamic bond formation length
+
+#---------------------------------------------------------------------
+# Parameter sweep
+#---------------------------------------------------------------------
+
+# Energy scale governing bond stiffness
+variable        Energy equal 1.0533e-06
+
+# Length at which bond force diverges	            
+variable        Lcrit equal $(1.90*v_Lmax)
+
+# Length at which bond force reaches 200 dynes
+variable        Lfc equal 0.004125404
+
+#---------------------------------------------------------------------
+# Bond and Pairwise Potential Parameters 
+#---------------------------------------------------------------------
+
+variable        rscreen equal $(0.2*v_ell)          # Screening length (governs pairwise decay lengthscale)
+variable        Apair equal $(0.4*v_Energy)           # Energy scale for pairwise forces
+variable	    cutoff_rep equal ${ell}	            # Length at which repulsion force is zero & no longer checked
+variable        fc equal 0.002                      # Critical force at which bonds break
+variable        Kmax equal 3.487                  # Stiffness at bond failure
+
+#---------------------------------------------------------------------
+# Kinetic parameters
+#---------------------------------------------------------------------
+
+# Experimentally measured kinetic rates in units of [1/s]
+variable        ka_bar_0 equal 0.0848
+variable        kd_bar_0 equal 0.0074   #
+
+# Kinetic rates used for this simulation (as a multiple of the measured rates)
+variable        k_frac equal 1
+variable        ka0 equal $(v_ka_bar_0*v_k_frac)
+variable        kd0 equal $(v_kd_bar_0*v_k_frac)
+
+# Normalize ka and kd by numerical quasi-time steps
+#variable        ka_bar equal $(v_ka_bar_0*v_Nevery/v_Nkin)
+#variable        kd_bar equal $(v_kd_bar_0*v_Nevery/v_Nkin)
+#variable        ka equal $(v_ka0*v_Nevery/v_Nkin)
+#variable        kd equal $(v_kd0*v_Nevery/v_Nkin)
+#variable        tauh equal $(1/(v_ka+v_kd))
+
+#---------------------------------------------------------------------
+# Define bond properties (nonlinear springs)
+#---------------------------------------------------------------------
+variable	    R equal 0
+bond_style      nonlinear
+bond_coeff      1 ${Energy} ${R} ${Lcrit}
+
+#---------------------------------------------------------------------
+# Define pairwise repulsion
+#---------------------------------------------------------------------
+variable	    kappa equal $(1.0/v_rscreen)
+pair_style	    hybrid/overlay yukawa/colloid ${kappa} ${cutoff_rep} zero $(v_Lcrit*2.5)
+pair_coeff      * * yukawa/colloid $(v_Apair*v_kappa) ${cutoff_rep}
+pair_coeff      * * zero $(v_Lcrit*2.5)  # Added pairwise cutoff distance for communication
+
+####################################
+#### Derived Simulation Parameters
+####################################
+# Calculate minimum mass
+compute         getmass all property/atom mass
+compute         minmass all reduce min c_getmass
+
+run             0
+reset_timestep  0 time 0
+
+# Calculate timestep
+variable        dt equal $(v_alpha*sqrt(c_minmass/v_Kmax))      
+
+#---------------------------------------------------------------------
+# Loading parameters
+#---------------------------------------------------------------------
+variable        vel equal $(0.001) #Loading rate 0.0001
+variable        lammax equal 3.0    #desired stretch
+
+variable        H0 equal $(yhi-ylo)         #inital height
+variable        H equal yhi-ylo
+variable        Hf equal $(v_H0*v_lammax)   
+
+variable        Nrun equal $(ceil(v_Hf/v_vel/v_dt))
+variable        nout equal $(ceil(v_Nrun/200))
+
+#############################################
+##### Initialize particles and bond topology
+#############################################
+
+# for inter-processor communication
+neighbor        $(10.0*v_ell) bin
+neigh_modify    page 1000000 one 100000 exclude molecule/intra all
+
+# Compute bond informations
+compute         1 all property/local btype batom1 batom2
+compute         2 all bond/local dist force engpot
+compute         4 all reduce max c_2[1] inputs local
+compute         5 all reduce sum c_1[1] inputs local
+variable        Bmax equal c_4
+variable        vbonds equal c_5
+
+# Outputs in command window
+thermo_style    custom step atoms v_vbonds ebond epair
+thermo          100
+thermo_modify	flush yes lost warn lost/bond warn
+
+# Initialize bond topology at experimentally-measured rates for proper initial conditions
+timestep        $(v_dt)
+fix             dynamics all bond/dynamic 1 1 1 $(100*v_ka0) ${kd0} ${Lmax} maxbond 6
+run             5000
+unfix           dynamics
+
+# Outputs in command window
+thermo_style    custom step atoms v_vbonds ebond epair lx ly fmax
+thermo          ${nout}
+thermo_modify	flush yes lost warn lost/bond warn
+
+### Define groups ###
+region		    top block INF INF $(yhi-v_H0/20.0) INF INF INF units box
+region		    bot block INF INF INF $(ylo+v_H0/20.0)  INF INF units box
+group		    top_atoms region top
+group		    bot_atoms region bot
+group       	top_atoms include molecule
+group       	bot_atoms include molecule
+group       	bulk_atoms subtract all top_atoms bot_atoms
+group       	boundary_atoms subtract all bulk_atoms
+
+# Boundary conditions
+timestep        $(v_dt)
+fix             top_zero top_atoms setforce 0.0 0.0 0.0
+fix             bot_zero bot_atoms setforce 0.0 0.0 0.0
+#fix            integrate bulk_atoms nve/bpm/sphere 
+fix             integrate all nve #langevin 0.0 0.0 0.0 1234
+fix             damp all viscous $(c_minmass*v_chi/v_dt)
+
+# Apply bond dynamics using fix bond/dynamc
+#fix              dynamics all bond/dynamic 1 1 1 ${ka0} ${kd0} ${Lmax} maxbond 6 critical ${Lfc} #skip 1 ${Nevery}
+#unfix             dynamics
+
+# Equilibrate
+reset_timestep  0 time 0
+dump            mydumpdebug all custom 5000 atoms_equilib.dump id type mol x y
+dump_modify     mydumpdebug first yes
+dump 		    bondsdumpdebug all local 5000 bonds_equilib.dump c_1[*] c_2[*]
+dump_modify     bondsdumpdebug first yes
+fix             2dfix all enforce2d
+run             50000
+
+undump          mydumpdebug  
+undump          bondsdumpdebug   
+####################################
+#### Apply deformation
+####################################
+
+fix              dynamics all bond/dynamic 1 1 1 ${ka0} ${kd0} ${Lmax} maxbond 6 critical ${Lfc} #skip 1 ${Nevery}
+
+# Fix simulation in the y direction
+change_box      all boundary f f p
+
+# Compute 'press' stress on each atom and sum throughout system
+#compute         Pbond all pressure NULL bond
+compute         6 all stress/atom NULL
+compute         Pbond all reduce sum c_6[*]
+
+# Define stretch in the y direction
+variable        H equal yhi-ylo
+variable        lamy equal v_H/v_H0
+
+# Potential bond energy
+compute         PE all pe bond
+variable        psi equal c_PE
+
+# Stress variables
+variable        Pb1 equal c_Pbond[1]
+variable        Pb2 equal c_Pbond[2]
+variable        Pb12 equal c_Pbond[4]
+
+# Outputs in command window
+variable        vfmax equal fmax
+thermo_style    custom step atoms v_vbonds v_psi epair v_lamy v_Bmax v_vfmax v_Pb2
+thermo          ${nout}
+thermo_modify	flush yes lost warn lost/bond warn
+
+#####################################
+######### FIRST DEFORMATION #########
+#####################################
+
+reset_timestep  0 time 0
+variable        vtime equal time
+fix             printS all print 1 "${vtime} ${H} ${lamy} ${Pb1} ${Pb2} ${Pb12} ${psi}" file Energy.out screen no title ""
+run             0
+unfix           printS
+
+
+# Defining step quantities
+#variable        Nsteps equal $(floor(v_ndef/v_Nevery))
+#variable        nstart equal $(step)
+#variable        nmod equal step-v_nstart+1
+#if              "$(floor(v_Nsteps/150))==0" then "variable fact equal 1.0" else "variable fact equal $(floor(v_Nsteps/150))"
+#variable        fact equal 1.0
+#variable        Nevery2 equal $(v_fact*v_Nevery)
+#variable        noutv equal (floor(v_nmod/v_Nevery2)+1)*v_Nevery2+v_nstart-1
+
+### First outputs to files ###
+fix             printS all print ${nout} "${vtime} ${H} ${lamy} ${Pb1} ${Pb2} ${Pb12} ${psi}" append Energy.out screen no title ""
+dump            mydump all custom ${nout} atoms.dump id type mol x y
+dump 		    bondsdump all local ${nout} bonds.dump c_1[*] c_2[*]
+dump_modify     mydump first yes
+dump_modify     bondsdump first yes
+
+### Apply deformation ###
+fix             stretch boundary_atoms deform 1 y vel $(v_vel/2)
+timestep        $(v_dt)
+run             ${Nrun}

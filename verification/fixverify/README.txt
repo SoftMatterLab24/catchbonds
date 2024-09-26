@@ -1,0 +1,1 @@
+These scripts are used to verify the catch kinetics implementation in lammps.
