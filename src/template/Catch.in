@@ -34,10 +34,10 @@ variable        Lmax equal $(v_xi*2.0)	# Maximum dynamic bond formation length
 #---------------------------------------------------------------------
 
 # Efficiency of the catch bond
-variable        catch_eff equal 1       #$# USER INPUT
+variable        catch_eff equal 1.0       #$# USER INPUT
 
 # Weissenberg number
-variable        Wi equal 1              #$# USER INPUT
+variable        Wi equal 1.0              #$# USER INPUT
 
 #---------------------------------------------------------------------
 # Bond Parameters
@@ -60,7 +60,7 @@ variable        Kmax equal 3.487                    # Stiffness at bond failure 
 #---------------------------------------------------------------------
 
 variable        rscreen equal $(0.1818*v_ell)       # Screening length (governs pairwise decay lengthscale)
-variable        Apair equal $(0.4*v_Energy)         # Energy scale for pairwise forces
+variable        Apair equal $(v_Energy/15)         # Energy scale for pairwise forces
 variable	    cutoff_rep equal ${ell}	            # Length at which repulsion force is zero & no longer checked
 
 #---------------------------------------------------------------------
@@ -117,7 +117,7 @@ variable        H0 equal $(yhi-ylo)                 #inital height
 variable        H equal yhi-ylo
 variable        Hf equal $(v_H0*v_lammax)           #final height
 
-variable        Nrun equal $(ceil((v_lammax-1)/v_vel/v_dt))
+variable        Nrun equal $(ceil((v_lammax-1)/v_erate/v_dt))
 variable        nout equal $(ceil(v_Nrun/200))
 variable        nthermo equal $(ceil(v_nout/10))
 
@@ -126,7 +126,7 @@ variable        nthermo equal $(ceil(v_nout/10))
 #############################################
 
 # for inter-processor communication
-neighbor        $(5.0*v_ell) bin
+neighbor        $(2.5*v_ell) bin
 neigh_modify    page 1000000 one 100000 #exclude molecule/intra all
 
 #---------------------------------------------------------------------
@@ -147,7 +147,7 @@ variable        vbonds equal c_5
 
 # Outputs in command window
 thermo_style    custom step atoms v_vbonds ebond epair
-thermo          ${nthermo}
+thermo          $(v_nthermo)
 thermo_modify	flush yes lost warn lost/bond warn
 
 #---------------------------------------------------------------------
@@ -162,7 +162,7 @@ unfix           dynamics
 
 # Outputs in command window
 thermo_style    custom step atoms v_vbonds ebond epair lx ly fmax
-thermo          ${nthemro}
+thermo          $(v_nthermo)
 thermo_modify	flush yes lost warn lost/bond warn
 
 #---------------------------------------------------------------------
@@ -227,7 +227,7 @@ variable        Pb12 equal c_Pbond[4]
 # Outputs in command window
 variable        vfmax equal fmax
 thermo_style    custom step atoms v_vbonds v_psi epair v_lamy v_Bmax v_vfmax v_Pb2
-thermo          ${nthermo}
+thermo          $(v_nthermo)
 thermo_modify	flush yes lost warn lost/bond warn
 
 ####################################
