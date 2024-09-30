@@ -60,7 +60,7 @@ variable        Kmax equal 3.487                    # Stiffness at bond failure 
 #---------------------------------------------------------------------
 
 variable        rscreen equal $(0.1818*v_ell)       # Screening length (governs pairwise decay lengthscale)
-variable        Apair equal $(v_Energy/15)         # Energy scale for pairwise forces
+variable        Apair equal $(v_Energy/15)          # Energy scale for pairwise forces
 variable	    cutoff_rep equal ${ell}	            # Length at which repulsion force is zero & no longer checked
 
 #---------------------------------------------------------------------
@@ -74,7 +74,7 @@ variable        kd0 equal 0.0074
 variable        tauh equal $(1/(v_ka0+v_kd0))
 
 # Transition state distance (for both slip and catch pathways)
-variable        f0 equal 0.0004
+variable        f0 equal 0.0004                     #$# USER INPUT
 
 variable        B equal $((2.0*v_catch_eff^2)+2*sqrt(v_catch_eff^4-v_catch_eff^2)-1)
 variable        kd_bar equal $(v_kd0/(v_B+1))
