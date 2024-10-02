@@ -72,7 +72,7 @@ fprintf(fid,'1 atom types\n');
 fprintf(fid,'1 bond types\n');
 
 % Simulation boundaries
-fprintf(fid,'%g %g xlo xhi\n',-Lx/2,Lx/2);
+fprintf(fid,'%g %g xlo xhi\n',-Lx/2 -5*xi,Lx/2 + 5*xi);
 fprintf(fid,'%g %g ylo yhi\n',-Ly/2,Ly/2);
 fprintf(fid,'%g %g zlo zhi\n\n',-Lx/20,Lx/20);
 
