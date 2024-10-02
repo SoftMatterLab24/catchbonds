@@ -6,4 +6,4 @@ Paramater File (params.csv)
 
 ## Brice TO DO
 - [ ] Upload code to ibuilder
-- [ ] run small scale sweep test on alpine using the CatchAtoms_small.dat, see 
+- [ ] run small scale sweep test on alpine using the CatchAtoms_small.dat, see runs\testrun1\params.csv for settings
