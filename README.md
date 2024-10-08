@@ -7,3 +7,4 @@ Paramater File (params.csv)
 ## Brice TO DO
 - [ ] Upload code to ibuilder
 - [ ] run test on alpine using CatchV2 template with Wi = 0.075, sweep the number of proc (16,32,64)
+- [ ] plot number of proc vs wall time, plot number of proc vs %comm time
