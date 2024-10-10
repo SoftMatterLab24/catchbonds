@@ -37,7 +37,7 @@ variable        Lmax equal $(v_xi*2.0)	# Maximum dynamic bond formation length
 variable        catch_eff equal 1.0       #$# USER INPUT
 
 # Weissenberg number
-variable        Wi equal 0.75              #$# USER INPUT
+variable        Wi equal 10              #$# USER INPUT
 
 #---------------------------------------------------------------------
 # Bond Parameters
@@ -111,7 +111,7 @@ variable        dt equal $(v_alpha*sqrt(c_minmass/v_Kmax))
 # Loading parameters
 #---------------------------------------------------------------------
 variable        erate equal $(v_Wi*v_kd0)           #Engineering strain rate
-variable        lammax equal 1.50                    #desired stretch #$# USER INPUT
+variable        lammax equal 4                    #desired stretch #$# USER INPUT
 
 variable        H0 equal $(yhi-ylo)                 #inital height
 variable        H equal yhi-ylo
@@ -256,17 +256,17 @@ run             $(ceil(v_Nrun))
 ####################################
 #### Apply unloading
 ####################################
-unfix           stretch
-unfix           dynamics
-fix             stretch boundary_atoms deform 1 y erate $(-1*v_erate)
-run             $(ceil(v_Nrun/2))
+# unfix           stretch
+# unfix           dynamics
+# fix             stretch boundary_atoms deform 1 y erate $(-1*v_erate)
+# run             $(ceil(v_Nrun/2))
 
-unfix           stretch
-fix             dynamics all bond/dynamic 1 1 1 ${ka0} ${kd_bar} ${Lmax} maxbond 6 critical ${Lfc} catch ${f0} ${f0} ${B}
-fix             stretch boundary_atoms deform 1 y erate $(v_erate)
-run             $(ceil(v_Nrun))
+# unfix           stretch
+# fix             dynamics all bond/dynamic 1 1 1 ${ka0} ${kd_bar} ${Lmax} maxbond 6 critical ${Lfc} catch ${f0} ${f0} ${B}
+# fix             stretch boundary_atoms deform 1 y erate $(v_erate)
+# run             $(ceil(v_Nrun))
 
-unfix           stretch
-unfix           dynamics
-fix             stretch boundary_atoms deform 1 y erate $(-1*v_erate)
-run             $(ceil(v_Nrun/2))
+# unfix           stretch
+# unfix           dynamics
+# fix             stretch boundary_atoms deform 1 y erate $(-1*v_erate)
+# run             $(ceil(v_Nrun/2))

@@ -1,0 +1,10 @@
+{
+    "files.associations": {
+        "*.in": "lmps",
+        "utility": "cpp",
+        "compare": "cpp",
+        "type_traits": "cpp",
+        "xtr1common": "cpp",
+        "xutility": "cpp"
+    }
+}
