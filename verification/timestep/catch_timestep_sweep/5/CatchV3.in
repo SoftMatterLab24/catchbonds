@@ -19,7 +19,7 @@ read_data       CatchAtoms_150.dat extra/bond/per/atom 6 extra/special/per/atom 
 # Simulation parameters
 #---------------------------------------------------------------------
 variable        chi   equal 0.001        # Damping multiplier
-variable        alpha equal 0.025         # Timestep multiplier 
+variable        alpha equal 2.5         # Timestep multiplier 
 
 variable        xi equal 0.0014         # Mesh size (m)   #$# USER INPUT Must match output from the builder
 
