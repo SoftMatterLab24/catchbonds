@@ -1,0 +1,6 @@
+#!/bin/bash
+#SBATCH -t 3:00:00
+#SBATCH -N 1 
+#SBATCH -A uco
+
+srun -n 112 /g/g20/white272/lammps/build/lmp -in /p/lustre1/white272/CatchRuns/catch_initialsweep_2/catchW01/catch_1/Catch.in
