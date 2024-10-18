@@ -13,12 +13,12 @@ newton          on off
 #---------------------------------------------------------------------
 # Read in data from .dat file
 #---------------------------------------------------------------------
-read_data       CatchAtoms_small.dat extra/bond/per/atom 6 extra/special/per/atom 100  #$# USER INPUT (name of .dat folder)
+read_data       CatchAtoms_150.dat extra/bond/per/atom 6 extra/special/per/atom 100  #$# USER INPUT (name of .dat folder)
 
 #---------------------------------------------------------------------
 # Simulation parameters
 #---------------------------------------------------------------------
-variable        chi equal 0.003         # Damping multiplier
+variable        chi   equal 0.003        # Damping multiplier
 variable        alpha equal 0.05         # Timestep multiplier 
 
 variable        xi equal 0.0014         # Mesh size (m)   #$# USER INPUT Must match output from the builder
@@ -60,7 +60,7 @@ variable        Kmax equal 3.487                    # Stiffness at bond failure 
 #---------------------------------------------------------------------
 
 variable        rscreen equal $(0.15*v_ell)       # Screening length (governs pairwise decay lengthscale) 0.1818
-variable        Apair equal $(0.2*v_Energy/15)          # Energy scale for pairwise forces
+variable        Apair equal $(v_Energy/15)          # Energy scale for pairwise forces
 variable	    cutoff_rep equal ${ell}	            # Length at which repulsion force is zero & no longer checked
 
 #---------------------------------------------------------------------
@@ -111,7 +111,7 @@ variable        dt equal $(v_alpha*sqrt(c_minmass/v_Kmax))
 # Loading parameters
 #---------------------------------------------------------------------
 variable        erate equal $(v_Wi*v_kd0)           #Engineering strain rate
-variable        lammax equal 4                    #desired stretch #$# USER INPUT
+variable        lammax equal 3                    #desired stretch #$# USER INPUT
 
 variable        H0 equal $(yhi-ylo)                 #inital height
 variable        H equal yhi-ylo
@@ -147,7 +147,7 @@ variable        nbtype1 equal c_3[1]
 #---------------------------------------------------------------------
 
 # Outputs in command window
-thermo_style    custom step atoms v_nbtype1 ebond epair
+thermo_style    custom step atoms v_nbtype1 ebond epair pe ke
 thermo          $(v_nthermo)
 thermo_modify	flush yes lost warn lost/bond warn
 
@@ -162,7 +162,7 @@ run             5000
 unfix           dynamics
 
 # Outputs in command window
-thermo_style    custom step atoms v_nbtype1 ebond epair lx ly fmax
+thermo_style    custom step atoms v_nbtype1 ebond epair pe ke lx ly fmax
 thermo          $(v_nthermo)
 thermo_modify	flush yes lost warn lost/bond warn
 
@@ -209,7 +209,8 @@ run             0
 
 variable        iatom atom "c_coordx < v_minx+1e-08"
 group           ifixatom variable iatom
-fix             fixatom ifixatom setforce 0.0 0.0 0.0
+#fix             fixatom ifixatom setforce 0.0 0.0 0.0
+
 ####################################
 #### Setup final thermo and computes
 ####################################
@@ -238,7 +239,7 @@ variable        Pb12 equal c_Pbond[4]
 
 # Outputs in command window
 variable        vfmax equal fmax
-thermo_style    custom step atoms v_nbtype1 v_psi epair v_lamy v_Bmax v_vfmax v_Pb2
+thermo_style    custom step atoms v_nbtype1 v_psi epair pe ke v_lamy v_Bmax v_vfmax v_Pb2
 thermo          $(v_nthermo)
 thermo_modify	flush yes lost warn lost/bond warn
 

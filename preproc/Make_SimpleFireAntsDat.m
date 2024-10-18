@@ -2,7 +2,7 @@ clear all; clc
 
 %%% Options %%%
 iplot = 1;      %plot the outpu
-idefect = 1;    %make a defect (hole)
+idefect = 0;    %make a defect (hole)
 
 %%% User Inputs %%%
 %Mesh Size

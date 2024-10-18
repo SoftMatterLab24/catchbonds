@@ -13,7 +13,7 @@ newton          on off
 #---------------------------------------------------------------------
 # Read in data from .dat file
 #---------------------------------------------------------------------
-read_data       CatchAtoms_small.dat extra/bond/per/atom 6 extra/special/per/atom 100  #$# USER INPUT (name of .dat folder)
+read_data       CatchAtomsDefect_150.dat extra/bond/per/atom 6 extra/special/per/atom 100  #$# USER INPUT (name of .dat folder)
 
 #---------------------------------------------------------------------
 # Simulation parameters
@@ -34,10 +34,10 @@ variable        Lmax equal $(v_xi*2.0)	# Maximum dynamic bond formation length
 #---------------------------------------------------------------------
 
 # Efficiency of the catch bond
-variable        catch_eff equal 1.0       #$# USER INPUT
+variable        catch_eff equal 1.5       #$# USER INPUT
 
 # Weissenberg number
-variable        Wi equal 10              #$# USER INPUT
+variable        Wi equal 1              #$# USER INPUT
 
 #---------------------------------------------------------------------
 # Bond Parameters
@@ -111,7 +111,7 @@ variable        dt equal $(v_alpha*sqrt(c_minmass/v_Kmax))
 # Loading parameters
 #---------------------------------------------------------------------
 variable        erate equal $(v_Wi*v_kd0)           #Engineering strain rate
-variable        lammax equal 4                    #desired stretch #$# USER INPUT
+variable        lammax equal 3                    #desired stretch #$# USER INPUT
 
 variable        H0 equal $(yhi-ylo)                 #inital height
 variable        H equal yhi-ylo
