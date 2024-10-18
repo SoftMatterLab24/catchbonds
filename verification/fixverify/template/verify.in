@@ -6,10 +6,6 @@ boundary        p p p
 #---------------------------------------------------------------------
 # Specify atoms and bond attributes (tells lammps what to store)
 #---------------------------------------------------------------------
-#atom_style      hybrid bond sphere	# bond to store topology, sphere to store radii
-#special_bonds 	lj 1 1 1 coul 1 1 1
-#newton          on off
-
 atom_style      bond
 special_bonds 	lj 1 1 1 coul 1 1 1
 newton          on off
@@ -19,35 +15,65 @@ newton          on off
 #---------------------------------------------------------------------
 read_data      verify_nobonds.dat extra/bond/per/atom 6 extra/special/per/atom 100
 
-
 #---------------------------------------------------------------------
 # Simulation Parameters
 #---------------------------------------------------------------------
-variable        dt equal 0.01   
-variable        Nrun equal 200000
-variable        nout equal 1
+variable        dt equal 0.001      #timestep
+variable        Nrun equal 200000   #number of steps
+variable        nout equal 1        #output frequency
 mass            * 1e-6
 
+variable        xi equal 0.0014     # Mesh size (m) 
 #---------------------------------------------------------------------
 # Communication lengthscales
 #---------------------------------------------------------------------
-variable        ell equal 0.0625
-variable        Lcrit equal 0.05
+variable        ell equal $(v_xi*1.5)   # 
+variable        Lmax equal $(v_xi*2.0)	# Maximum dynamic bond formation length
 
 #---------------------------------------------------------------------
-# Kinetic Parameters
+# Parameter sweep
 #---------------------------------------------------------------------
-variable        ka equal 10
-variable        kd equal 0.1
-variable        Lmax equal $(v_ell*0.8)	
+# Efficiency of the catch bond
+variable        catch_eff equal 1.0       #$# CHANGE THIS AIDAN (= 1 is slip, >1 is catch)
 
 #---------------------------------------------------------------------
-# Define bond properties (linear springs)
+# Bond Parameters
 #---------------------------------------------------------------------
-variable        Energy equal 3.0
-variable        R0 equal 0
-bond_style      harmonic
-bond_coeff      1 ${Energy} ${R0} 
+
+# Energy scale governing bond stiffness
+variable        Energy equal 1.0533e-06
+
+# Length at which bond force diverges	            
+variable        Lcrit equal $(1.90*v_Lmax)
+
+# Length at which bond force reaches 200 dynes (and breaks)
+variable        Lfc equal 0.004125404
+
+variable        fc equal 0.002                      # Critical force at which bonds break
+variable        Kmax equal 3.487                    # Stiffness at bond failure   #$# USER INPUT Must match output from the builder
+
+#---------------------------------------------------------------------
+# Bond kinetic parameters
+#---------------------------------------------------------------------
+
+# Experimentally measured kinetic rates in units of [1/s]
+variable        ka0 equal 0.0848
+variable        kd0 equal 0.0074
+
+variable        tauh equal $(1/(v_ka0+v_kd0))
+
+# Transition state distance (for both slip and catch pathways)
+variable        f0 equal 0.0004                     #$# USER INPUT
+
+variable        B equal $((2.0*v_catch_eff^2)+2*sqrt(v_catch_eff^4-v_catch_eff^2)-1)
+variable        kd_bar equal $(v_kd0/(v_B+1))
+
+#---------------------------------------------------------------------
+# Define bond properties (nonlinear springs)
+#---------------------------------------------------------------------
+variable	    R equal 0
+bond_style      nonlinear
+bond_coeff      1 ${Energy} ${R} ${Lcrit}
 
 #---------------------------------------------------------------------
 # Define pairwise repulsion
@@ -58,39 +84,42 @@ pair_coeff      * * #zero $(v_Lcrit*2.0)
 #############################################
 ##### Initialize particles and bond topology
 #############################################
+# Setup bond dynamics (fix the seed so results are same everytime)
+fix              dynamics all bond/dynamic 1 1 1 ${ka0} ${kd_bar} ${Lmax} seed 1234 catch ${f0} ${f0} ${B}
+
+#fix             integrate all nve  #no integration (dont want atoms to move)
 
 # for inter-processor communication
 neighbor        ${ell} bin
-neigh_modify    page 1000000 one 100000 #exclude molecule/intra all
+neigh_modify    page 1000000 one 100000
 
 # Compute bond informations
 compute         1 all property/local btype batom1 batom2
 compute         2 all bond/local dist force engpot
+compute         3 all count/type bond
 compute         4 all reduce max c_2[1] inputs local
 compute         5 all reduce sum c_1[1] inputs local
-compute         6 all reduce sum c_2[2] inputs local
-variable        vbonds equal c_5
-variable        vforce equal c_6
+variable        Bmax equal c_4
+variable        nbtype1 equal c_3[1]
 
-# Compute Timestep
-variable        tauh equal $(1/(v_ka+v_kd))
 ## Outputs
 variable        vtime equal time
-fix             printS all print 1 "${vtime} ${vbonds} ${vforce}" file force.out screen no title ""
+fix             printS all print 1 "${vtime} ${nbtype1} ${vforce}" file force.out screen no title ""
 run             0
 unfix           printS
 
 thermo          10000
 
 ### First outputs to files ###
-fix             dynamics all bond/dynamic 1 1 1 ${ka} ${kd} ${Lmax} seed 7949 catch 0.05 0.03 0
-#fix             integrate all nve  
-fix             printS all print 1 "${vtime} ${vbonds} ${vforce}" append force.out screen no title "" 
+fix             printS all print 1 "${vtime} ${nbtype1} ${vforce}" append force.out screen no title "" 
+
+#Dumps
 dump            mydump all custom ${nout} atoms.dump id type mol x y
 dump 		    bondsdump all local ${nout} bonds.dump c_1[*] c_2[*]
+
 dump_modify     mydump first yes
 dump_modify     bondsdump first yes
 
 ### Run Simulation ##
-timestep        ${dt} #$(v_tauh/10)
+timestep        ${dt}
 run             ${Nrun}

@@ -140,7 +140,6 @@ compute         3 all count/type bond
 compute         4 all reduce max c_2[1] inputs local
 compute         5 all reduce sum c_1[1] inputs local
 variable        Bmax equal c_4
-#variable        nbtype0 equal c_3[2]
 variable        nbtype1 equal c_3[1]
 
 #---------------------------------------------------------------------
