@@ -1,12 +1,26 @@
 clear all; clc
 
-% %%% Size of domain (m) %%%
-Lx  = 150*1e-3;             % Length of x dimension
-Ly  = 100*1e-3;             % Length of y dimension
+%%% Options %%%
+iplot = 1;      %plot the outpu
+idefect = 1;    %make a defect (hole)
 
-xi = 1.4*1e-3;               % Spacing
+%%% User Inputs %%%
+%Mesh Size
+xi = 1.4*1e-3;          % Spacing
+
+%Domain length (units xi)
+L = 150;
+
+%Defect radues (units xi)
+Rdefect = 10;
+
+%Properties
 dia = 1e-3;
 rho = 0.304*1e6;
+
+%%% Size of domain (m) %%%
+Lx  = L*xi;             % Length of x dimension
+Ly  = L*xi;         % Length of y dimension
 
 %%% Limits for x and y cps %%%
 ax = (Lx)/2;
@@ -46,19 +60,25 @@ while 1 == 1
     itry = itry + 1;
 end
 
+if idefect
+    r2 = coords(:,1).^2 + coords(:,2).^2;
+
+    indefect = r2 < (Rdefect*xi)^2;
+    coords(indefect,:) = [];
+
+end
+
 natoms  = size(coords,1);
 
-
-% if iplot
+if iplot
     figure(2); clf
     hold on
     scatter(coords(:,1),coords(:,2),36,'filled')
     axis equal
-% end
+end
 
 
-%% Write to .dat file
-
+%%% Write to .dat file %%%
 disp('Writing to .dat file')
 
 % Begin writing
@@ -104,7 +124,7 @@ fprintf('Goal: %g, Achieved: %g\n',rho,rhotrue)
 fclose(fid);
 disp('done')
 
-
+%%% DEPRECIATED %%%
 % %% Parameters
 % 
 % %%% Single ant parameters %%%
