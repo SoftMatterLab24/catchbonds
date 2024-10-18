@@ -18,8 +18,8 @@ read_data      verify_nobonds.dat extra/bond/per/atom 6 extra/special/per/atom 1
 #---------------------------------------------------------------------
 # Simulation Parameters
 #---------------------------------------------------------------------
-variable        dt equal 0.001      #timestep
-variable        Nrun equal 200000   #number of steps
+variable        dt equal 0.1      #timestep
+variable        Nrun equal 0.5e6   #number of steps
 variable        nout equal 1        #output frequency
 mass            * 1e-6
 
@@ -85,7 +85,7 @@ pair_coeff      * * #zero $(v_Lcrit*2.0)
 ##### Initialize particles and bond topology
 #############################################
 # Setup bond dynamics (fix the seed so results are same everytime)
-fix              dynamics all bond/dynamic 1 1 1 ${ka0} ${kd_bar} ${Lmax} seed 1234 catch ${f0} ${f0} ${B}
+fix              dynamics all bond/dynamic 1 1 1 ${ka0} ${kd_bar} seed 1234 catch ${f0} ${f0} ${B}
 
 #fix             integrate all nve  #no integration (dont want atoms to move)
 
@@ -97,28 +97,28 @@ neigh_modify    page 1000000 one 100000
 compute         1 all property/local btype batom1 batom2
 compute         2 all bond/local dist force engpot
 compute         3 all count/type bond
-compute         4 all reduce max c_2[1] inputs local
+compute         4 all reduce max c_2[2] inputs local
 compute         5 all reduce sum c_1[1] inputs local
-variable        Bmax equal c_4
+variable        force equal c_4
 variable        nbtype1 equal c_3[1]
 
 ## Outputs
 variable        vtime equal time
-fix             printS all print 1 "${vtime} ${nbtype1} ${vforce}" file force.out screen no title ""
+fix             printS all print 1 "${vtime} ${nbtype1} ${force}" file force.out screen no title ""
 run             0
 unfix           printS
 
 thermo          10000
 
 ### First outputs to files ###
-fix             printS all print 1 "${vtime} ${nbtype1} ${vforce}" append force.out screen no title "" 
+fix             printS all print 1 "${vtime} ${nbtype1} ${force}" append force.out screen no title "" 
 
-#Dumps
-dump            mydump all custom ${nout} atoms.dump id type mol x y
-dump 		    bondsdump all local ${nout} bonds.dump c_1[*] c_2[*]
+#Dumps (dont output unless for debug - slows down simulations)
+#dump            mydump all custom ${nout} atoms.dump id type mol x y
+#dump 		    bondsdump all local ${nout} bonds.dump c_1[*] c_2[*]
 
-dump_modify     mydump first yes
-dump_modify     bondsdump first yes
+#dump_modify     mydump first yes
+#dump_modify     bondsdump first yes
 
 ### Run Simulation ##
 timestep        ${dt}
