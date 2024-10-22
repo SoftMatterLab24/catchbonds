@@ -9,7 +9,7 @@ idefect = 0;    %make a defect (hole)
 xi = 1.4*1e-3;          % Spacing
 
 %Domain length (units xi)
-L = 150;
+L = 8;
 
 %Defect radues (units xi)
 Rdefect = 10;
@@ -82,7 +82,7 @@ end
 disp('Writing to .dat file')
 
 % Begin writing
-fid = fopen('CatchAtoms.dat','w');
+fid = fopen('CatchAtomsSchema.dat','w');
 fprintf(fid,'Non-intersecting ant raft\n\n');
 
 % Atoms and bonds

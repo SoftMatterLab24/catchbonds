@@ -1,0 +1,10 @@
+#!/bin/bash
+#SBATCH -t 3:00:00
+#SBATCH -N 2 
+#SBATCH -A uco
+
+
+srun -n 224 /g/g20/white272/lammps/build/lmp -in /p/lustre1/white272/CatchRuns/catch_converge/##/CatchV3.in
+
+
+

@@ -18,8 +18,8 @@ read_data       CatchAtoms_150.dat extra/bond/per/atom 6 extra/special/per/atom 
 #---------------------------------------------------------------------
 # Simulation parameters
 #---------------------------------------------------------------------
-variable        chi   equal 1.0        # Damping multiplier
-variable        alpha equal 0.025         # Timestep multiplier 
+variable        chi   equal 0.001        # Damping multiplier
+variable        alpha equal 0.00025      # Timestep multiplier  #$#
 
 variable        xi equal 0.0014         # Mesh size (m)   #$# USER INPUT Must match output from the builder
 
@@ -157,8 +157,8 @@ thermo_modify	flush yes lost warn lost/bond warn
 
 # Initialize bond topology at experimentally-measured rates for proper initial conditions
 timestep        $(v_dt)
-fix             dynamics all bond/dynamic 1 1 1 $(100*v_ka0) ${kd0} ${Lmax} maxbond 6
-run             5000
+fix             dynamics all bond/dynamic 1 1 1 $(10000*v_ka0) ${kd0} ${Lmax} maxbond 6
+run             10000
 unfix           dynamics
 
 # Outputs in command window
@@ -186,7 +186,9 @@ timestep        $(v_dt)
 fix             top_zero top_atoms setforce NULL 0.0 0.0
 fix             bot_zero bot_atoms setforce NULL 0.0 0.0
 fix             integrate all nve
-fix             damp all viscous $(c_minmass*v_chi/v_dt)
+variable        gamma equal 0.000094
+fix             damp all viscous $(v_gamma) 
+#fix             damp all viscous $(c_minmass*v_chi/v_dt)
 
 # Equilibrate
 reset_timestep  0 time 0
@@ -229,8 +231,13 @@ variable        H equal yhi-ylo
 variable        lamy equal v_H/v_H0
 
 # Potential bond energy
-compute         PE all pe bond
-variable        psi equal c_PE
+compute         PE all pe
+compute         PE_b all pe bond
+compute         KE all ke
+
+variable        poteng equal c_PE
+variable        bondeng equal c_PE_b
+variable        kineng equal c_KE
 
 # Stress variables
 variable        Pb1 equal c_Pbond[1]
@@ -239,7 +246,7 @@ variable        Pb12 equal c_Pbond[4]
 
 # Outputs in command window
 variable        vfmax equal fmax
-thermo_style    custom step atoms v_nbtype1 v_psi epair pe ke v_lamy v_Bmax v_vfmax v_Pb2
+thermo_style    custom step atoms v_nbtype1 v_bondeng epair pe ke v_lamy v_Bmax v_vfmax v_Pb2
 thermo          $(v_nthermo)
 thermo_modify	flush yes lost warn lost/bond warn
 
@@ -249,12 +256,12 @@ thermo_modify	flush yes lost warn lost/bond warn
 
 reset_timestep  0 time 0
 variable        vtime equal time
-fix             printS all print 1 "${vtime} ${H} ${lamy} ${Pb1} ${Pb2} ${Pb12} ${psi} ${nbtype1}" file Energy.out screen no title ""
+fix             printS all print 1 "${vtime} ${H} ${lamy} ${Pb1} ${Pb2} ${Pb12} ${nbtype1} ${poteng} ${bondeng} ${kineng}" file Energy.out screen no title ""
 run             0
 unfix           printS
 
 ### First outputs to files ###
-fix             printS all print ${nout} "${vtime} ${H} ${lamy} ${Pb1} ${Pb2} ${Pb12} ${psi} ${nbtype1}" append Energy.out screen no title ""
+fix             printS all print ${nout} "${vtime} ${H} ${lamy} ${Pb1} ${Pb2} ${Pb12} ${nbtype1} ${poteng} ${bondeng} ${kineng}" append Energy.out screen no title ""
 dump            mydump all custom ${nout} atoms.dump id type mol x y
 dump 		    bondsdump all local ${nout} bonds.dump c_1[*] c_2[*]
 dump_modify     mydump first yes
