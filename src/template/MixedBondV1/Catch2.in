@@ -137,19 +137,19 @@ neigh_modify    page 1000000 one 100000 #exclude molecule/intra all
 # Compute bond informations
 compute         1 all property/local btype batom1 batom2
 compute         2 all bond/local dist force engpot
-compute         3 all count/type bond
+#compute         3 all count/type bond
 compute         4 all reduce max c_2[1] inputs local
 compute         5 all reduce sum c_1[1] inputs local
 variable        Bmax equal c_4
-variable        nbtype1 equal c_3[1]
-variable        nbtype2 equal c_3[2]
+#variable        nbtype1 equal c_3[1]
+#variable        nbtype2 equal c_3[2]
 
 #---------------------------------------------------------------------
 # Setup thermos
 #---------------------------------------------------------------------
 
 # Outputs in command window
-thermo_style    custom step atoms v_nbtype1 v_nbtype2 ebond epair lx ly fmax
+thermo_style    custom step atoms ebond epair lx ly fmax
 thermo          $(v_nthermo)
 thermo_modify	flush yes lost warn lost/bond warn
 
@@ -174,7 +174,7 @@ run             100
 unfix           bond22
 
 # Outputs in command window
-thermo_style    custom step atoms v_nbtype1 v_nbtype2 ebond epair lx ly fmax
+thermo_style    custom step atoms ebond epair lx ly fmax
 thermo          $(v_nthermo)
 thermo_modify	flush yes lost warn lost/bond warn
 
@@ -244,7 +244,7 @@ variable        Pb12 equal c_Pbond[4]
 
 # Outputs in command window
 variable        vfmax equal fmax
-thermo_style    custom step atoms v_vbonds v_psi epair v_lamy v_Bmax v_vfmax v_Pb2
+thermo_style    custom step atoms v_psi epair v_lamy v_Bmax v_vfmax v_Pb2
 thermo          $(v_nthermo)
 thermo_modify	flush yes lost warn lost/bond warn
 

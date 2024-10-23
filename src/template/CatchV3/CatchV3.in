@@ -186,7 +186,12 @@ timestep        $(v_dt)
 fix             top_zero top_atoms setforce NULL 0.0 0.0
 fix             bot_zero bot_atoms setforce NULL 0.0 0.0
 fix             integrate all nve
-fix             damp all viscous $(c_minmass*v_chi/v_dt)
+
+# Damping (auto)
+#fix             damp all viscous $(c_minmass*v_chi/v_dt)
+
+# Damping (manual)
+fix             damp all viscous $(v_gamma)
 
 # Equilibrate
 reset_timestep  0 time 0
@@ -215,7 +220,7 @@ group           ifixatom variable iatom
 #### Setup final thermo and computes
 ####################################
 
-fix              dynamics all bond/dynamic 1 1 1 ${ka0} ${kd_bar} ${Lmax} maxbond 6 critical ${Lfc} catch ${f0} ${f0} ${B}
+fix             dynamics all bond/dynamic 1 1 1 ${ka0} ${kd_bar} ${Lmax} maxbond 6 critical ${Lfc} catch ${f0} ${f0} ${B}
 
 # Fix simulation in the y direction
 change_box      all boundary f f p
@@ -229,8 +234,13 @@ variable        H equal yhi-ylo
 variable        lamy equal v_H/v_H0
 
 # Potential bond energy
-compute         PE all pe bond
-variable        psi equal c_PE
+compute         PE all pe
+compute         PE_b all pe bond
+compute         KE all ke
+
+variable        poteng equal c_PE
+variable        bondeng equal c_PE_b
+variable        kineng equal c_KE
 
 # Stress variables
 variable        Pb1 equal c_Pbond[1]
@@ -239,7 +249,7 @@ variable        Pb12 equal c_Pbond[4]
 
 # Outputs in command window
 variable        vfmax equal fmax
-thermo_style    custom step atoms v_nbtype1 v_psi epair pe ke v_lamy v_Bmax v_vfmax v_Pb2
+thermo_style    custom step atoms v_nbtype1 v_bondeng epair pe ke v_lamy v_Bmax v_vfmax v_Pb2
 thermo          $(v_nthermo)
 thermo_modify	flush yes lost warn lost/bond warn
 
@@ -249,12 +259,12 @@ thermo_modify	flush yes lost warn lost/bond warn
 
 reset_timestep  0 time 0
 variable        vtime equal time
-fix             printS all print 1 "${vtime} ${H} ${lamy} ${Pb1} ${Pb2} ${Pb12} ${psi} ${nbtype1}" file Energy.out screen no title ""
+fix             printS all print 1 "${vtime} ${H} ${lamy} ${Pb1} ${Pb2} ${Pb12} ${nbtype1} ${poteng} ${bondeng} ${kineng}" file Energy.out screen no title ""
 run             0
 unfix           printS
 
 ### First outputs to files ###
-fix             printS all print ${nout} "${vtime} ${H} ${lamy} ${Pb1} ${Pb2} ${Pb12} ${psi} ${nbtype1}" append Energy.out screen no title ""
+fix             printS all print ${nout} "${vtime} ${H} ${lamy} ${Pb1} ${Pb2} ${Pb12} ${nbtype1} ${poteng} ${bondeng} ${kineng}" append Energy.out screen no title ""
 dump            mydump all custom ${nout} atoms.dump id type mol x y
 dump 		    bondsdump all local ${nout} bonds.dump c_1[*] c_2[*]
 dump_modify     mydump first yes
