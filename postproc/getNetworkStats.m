@@ -1,6 +1,6 @@
 % function [] = getNetworkStats(afile,bfile)
 % 
-    loc = 'C:\Users\zwhit\Desktop\CatchTest\mixedbonds\90';
+    loc = 'C:\Users\zwhit\Desktop\CatchTest\mixedbonds\90'; loc = pwd;
     afile = strcat(loc,'\','atoms.dump');
     bfile = strcat(loc,'\','bonds.dump');
 

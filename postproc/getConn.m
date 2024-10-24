@@ -1,6 +1,6 @@
 function [kglobal,kglobalavg,krigid,krigidavg,nbonds] = getConn(bAtom1,bAtom2,bType,natoms)
 
-    for ii = 1:length(bAtom1)
+    for ii = 1:10%length(bAtom1)
         %% Global Properties
         numatoms = natoms(ii);
         bAtoms = [bAtom1{ii}; bAtom2{ii}];
