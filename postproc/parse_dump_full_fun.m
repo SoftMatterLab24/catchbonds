@@ -1,7 +1,7 @@
 function [x,y,id,ty,mol,natoms,bAtom1,bAtom2,bType,bLength,bForce,bForcex,bForcey,bForcez,bEngpot,xlims,ylims,zlims] = parse_dump_full_fun(afile,bfile)
 
-% afile = "atomDump0.dump";
-% bfile = "bondsDump0.dump";
+%afile = "atomDump.dump";
+%bfile = "bondsDump.dump";
 
 %% Parsing atoms
 

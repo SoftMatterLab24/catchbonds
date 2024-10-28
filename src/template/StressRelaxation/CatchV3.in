@@ -13,7 +13,7 @@ newton          on off
 #---------------------------------------------------------------------
 # Read in data from .dat file
 #---------------------------------------------------------------------
-read_data       CatchAtoms_150.dat extra/bond/per/atom 6 extra/special/per/atom 100  #$# USER INPUT (name of .dat folder)
+read_data       CatchAtoms_small.dat extra/bond/per/atom 6 extra/special/per/atom 100  #$# USER INPUT (name of .dat folder)
 
 #---------------------------------------------------------------------
 # Simulation parameters
@@ -34,7 +34,7 @@ variable        Lmax equal $(v_xi*2.0)	# Maximum dynamic bond formation length
 #---------------------------------------------------------------------
 
 # Efficiency of the catch bond
-variable        catch_eff equal 1.5       #$# USER INPUT
+variable        catch_eff equal 1.0       #$# USER INPUT
 
 # Weissenberg number
 variable        Wi equal 10              #$# USER INPUT
@@ -111,7 +111,7 @@ variable        dt equal $(v_alpha*sqrt(c_minmass/v_Kmax))
 # Loading parameters
 #---------------------------------------------------------------------
 variable        erate equal $(v_Wi*v_kd0)           #Engineering strain rate
-variable        lammax equal 1.01                    #desired stretch #$# USER INPUT
+variable        lammax equal 1.1                  #desired stretch #$# USER INPUT
 
 variable        H0 equal $(yhi-ylo)                 #inital height
 variable        H equal yhi-ylo
@@ -119,7 +119,7 @@ variable        Hf equal $(v_H0*v_lammax)           #final height
 
 variable        Nrun equal $(ceil((v_lammax-1)/v_erate/v_dt))
 variable        nout equal $(ceil(v_Nrun/200))
-variable        nthermo equal $(ceil(v_nout/10))
+variable        nthermo equal $(ceil(v_nout))
 
 #############################################
 ##### Initialize particles and bond topology
@@ -162,7 +162,8 @@ fix             dynamics all bond/dynamic 1 1 1 $(100*v_ka0) ${kd0} ${Lmax} maxb
 run             5000
 unfix           dynamics
 
-set             type 1 bond/fraction 2 0.9 8784554
+set             type 1 bond/fraction 2 0.5 8784554
+
 
 # Outputs in command window
 thermo_style    custom step atoms v_nbtype1 v_nbtype2 ebond epair pe ke lx ly fmax
@@ -224,10 +225,6 @@ group           ifixatom variable iatom
 #### Setup final thermo and computes
 ####################################
 
-fix             dynamics all bond/dynamic 1 1 2 ${ka0} ${kd_bar} ${Lmax} maxbond 6 critical ${Lfc} catch ${f0} ${f0} ${B}
-fix             break all bond/break 1 1 ${Lmax}  
-#fix             dynamics2 all bond/dynamic 1 1 1 0 0 ${Lmax} critical ${Lfc} #catch ${f0} ${f0} ${B}
-
 # Fix simulation in the y direction
 change_box      all boundary f f p
 
@@ -277,10 +274,17 @@ dump_modify     mydump first yes
 dump_modify     bondsdump first yes
 
 ### Apply deformation ###
+fix             break all bond/break 1 1 ${Lmax} 
 fix             stretch boundary_atoms deform 1 y erate ${erate}
 timestep        $(v_dt)
 run             $(ceil(v_Nrun))
 
+#fix             printS all print $(10*v_nout) "${vtime} ${H} ${lamy} ${Pb1} ${Pb2} ${Pb12} ${nbtype1} ${poteng} ${bondeng} ${kineng}" append Energy.out screen no title ""
+thermo          $(10*v_nthermo)
+
+unfix           stretch
+fix             dynamics all bond/dynamic 1 1 2 ${ka0} ${kd_bar} ${Lmax} maxbond 6 critical ${Lfc} catch ${f0} ${f0} ${B}
+run             $(ceil(50*v_Nrun))
 
 ####################################
 #### Apply unloading
