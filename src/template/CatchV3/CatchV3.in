@@ -13,7 +13,7 @@ newton          on off
 #---------------------------------------------------------------------
 # Read in data from .dat file
 #---------------------------------------------------------------------
-read_data       CatchAtoms_150.dat extra/bond/per/atom 6 extra/special/per/atom 100  #$# USER INPUT (name of .dat folder)
+read_data       CatchAtoms_150.dat extra/bond/per/atom 8 extra/special/per/atom 100  #$# USER INPUT (name of .dat folder)
 
 #---------------------------------------------------------------------
 # Simulation parameters
