@@ -111,7 +111,7 @@ variable        dt equal $(v_alpha*sqrt(c_minmass/v_Kmax))
 # Loading parameters
 #---------------------------------------------------------------------
 variable        erate equal $(v_Wi*v_kd0)           #Engineering strain rate
-variable        lammax equal 1.01                    #desired stretch #$# USER INPUT
+variable        lammax equal 3.0                   #desired stretch #$# USER INPUT
 
 variable        H0 equal $(yhi-ylo)                 #inital height
 variable        H equal yhi-ylo

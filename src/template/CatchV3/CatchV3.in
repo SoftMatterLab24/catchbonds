@@ -85,7 +85,7 @@ variable        kd_bar equal $(v_kd0/(v_B+1))
 variable	    R equal 0
 bond_style      nonlinear
 bond_coeff      1 ${Energy} ${R} ${Lcrit}
-
+bond_coeff      2 ${Energy} ${R} ${Lcrit}
 #---------------------------------------------------------------------
 # Define pairwise repulsion
 #---------------------------------------------------------------------
@@ -111,7 +111,7 @@ variable        dt equal $(v_alpha*sqrt(c_minmass/v_Kmax))
 # Loading parameters
 #---------------------------------------------------------------------
 variable        erate equal $(v_Wi*v_kd0)           #Engineering strain rate
-variable        lammax equal 3                    #desired stretch #$# USER INPUT
+variable        lammax equal 3.0                   #desired stretch #$# USER INPUT
 
 variable        H0 equal $(yhi-ylo)                 #inital height
 variable        H equal yhi-ylo
@@ -141,7 +141,7 @@ compute         4 all reduce max c_2[1] inputs local
 compute         5 all reduce sum c_1[1] inputs local
 variable        Bmax equal c_4
 variable        nbtype1 equal c_3[1]
-
+variable        nbtype2 equal c_3[2]
 #---------------------------------------------------------------------
 # Setup thermos
 #---------------------------------------------------------------------
@@ -157,12 +157,15 @@ thermo_modify	flush yes lost warn lost/bond warn
 
 # Initialize bond topology at experimentally-measured rates for proper initial conditions
 timestep        $(v_dt)
+
 fix             dynamics all bond/dynamic 1 1 1 $(100*v_ka0) ${kd0} ${Lmax} maxbond 6
 run             5000
 unfix           dynamics
 
+set             type 1 bond/fraction 2 0.5 8784554
+
 # Outputs in command window
-thermo_style    custom step atoms v_nbtype1 ebond epair pe ke lx ly fmax
+thermo_style    custom step atoms v_nbtype1 v_nbtype2 ebond epair pe ke lx ly fmax
 thermo          $(v_nthermo)
 thermo_modify	flush yes lost warn lost/bond warn
 
@@ -191,6 +194,7 @@ fix             integrate all nve
 #fix             damp all viscous $(c_minmass*v_chi/v_dt)
 
 # Damping (manual)
+variable        gamma equal 0.00094
 fix             damp all viscous $(v_gamma)
 
 # Equilibrate
@@ -220,7 +224,11 @@ group           ifixatom variable iatom
 #### Setup final thermo and computes
 ####################################
 
-fix             dynamics all bond/dynamic 1 1 1 ${ka0} ${kd_bar} ${Lmax} maxbond 6 critical ${Lfc} catch ${f0} ${f0} ${B}
+# Define rupture for permanent bonds
+fix             break all bond/break 1 1 ${Lmax}
+
+# Setup bond dynamics
+fix             dynamics all bond/dynamic 1 1 2 ${ka0} ${kd_bar} ${Lmax} maxbond 8 critical ${Lfc} catch ${f0} ${f0} ${B}
 
 # Fix simulation in the y direction
 change_box      all boundary f f p
@@ -233,7 +241,7 @@ compute         Pbond all reduce sum c_6[*]
 variable        H equal yhi-ylo
 variable        lamy equal v_H/v_H0
 
-# Potential bond energy
+# Compute energy
 compute         PE all pe
 compute         PE_b all pe bond
 compute         KE all ke
@@ -249,7 +257,7 @@ variable        Pb12 equal c_Pbond[4]
 
 # Outputs in command window
 variable        vfmax equal fmax
-thermo_style    custom step atoms v_nbtype1 v_bondeng epair pe ke v_lamy v_Bmax v_vfmax v_Pb2
+thermo_style    custom step atoms v_nbtype1 v_nbtype2 v_bondeng epair pe ke v_lamy v_Bmax v_vfmax v_Pb2
 thermo          $(v_nthermo)
 thermo_modify	flush yes lost warn lost/bond warn
 
@@ -259,12 +267,12 @@ thermo_modify	flush yes lost warn lost/bond warn
 
 reset_timestep  0 time 0
 variable        vtime equal time
-fix             printS all print 1 "${vtime} ${H} ${lamy} ${Pb1} ${Pb2} ${Pb12} ${nbtype1} ${poteng} ${bondeng} ${kineng}" file Energy.out screen no title ""
+fix             printS all print 1 "${vtime} ${H} ${lamy} ${Pb1} ${Pb2} ${Pb12} ${nbtype1} ${nbtype2} ${poteng} ${bondeng} ${kineng}" file Energy.out screen no title ""
 run             0
 unfix           printS
 
 ### First outputs to files ###
-fix             printS all print ${nout} "${vtime} ${H} ${lamy} ${Pb1} ${Pb2} ${Pb12} ${nbtype1} ${poteng} ${bondeng} ${kineng}" append Energy.out screen no title ""
+fix             printS all print ${nout} "${vtime} ${H} ${lamy} ${Pb1} ${Pb2} ${Pb12} ${nbtype1} ${nbtype2} ${poteng} ${bondeng} ${kineng}" append Energy.out screen no title ""
 dump            mydump all custom ${nout} atoms.dump id type mol x y
 dump 		    bondsdump all local ${nout} bonds.dump c_1[*] c_2[*]
 dump_modify     mydump first yes
@@ -274,22 +282,3 @@ dump_modify     bondsdump first yes
 fix             stretch boundary_atoms deform 1 y erate ${erate}
 timestep        $(v_dt)
 run             $(ceil(v_Nrun))
-
-
-####################################
-#### Apply unloading
-####################################
-# unfix           stretch
-# unfix           dynamics
-# fix             stretch boundary_atoms deform 1 y erate $(-1*v_erate)
-# run             $(ceil(v_Nrun/2))
-
-# unfix           stretch
-# fix             dynamics all bond/dynamic 1 1 1 ${ka0} ${kd_bar} ${Lmax} maxbond 6 critical ${Lfc} catch ${f0} ${f0} ${B}
-# fix             stretch boundary_atoms deform 1 y erate $(v_erate)
-# run             $(ceil(v_Nrun))
-
-# unfix           stretch
-# unfix           dynamics
-# fix             stretch boundary_atoms deform 1 y erate $(-1*v_erate)
-# run             $(ceil(v_Nrun/2))
