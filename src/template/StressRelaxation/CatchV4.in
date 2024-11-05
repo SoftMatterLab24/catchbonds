@@ -13,13 +13,13 @@ newton          on off
 #---------------------------------------------------------------------
 # Read in data from .dat file
 #---------------------------------------------------------------------
-read_data       CatchAtoms_small.dat extra/bond/per/atom 8 extra/special/per/atom 100  #$# USER INPUT (name of .dat folder)
+read_data       CatchAtoms_150.dat extra/bond/per/atom 8 extra/special/per/atom 100  #$# USER INPUT (name of .dat folder)
 
 #---------------------------------------------------------------------
 # Simulation parameters
 #---------------------------------------------------------------------
-variable        chi   equal 0.001        # Damping multiplier
-variable        alpha equal 0.025         # Timestep multiplier 
+variable        chi   equal 0.001         # Damping multiplier
+variable        alpha equal 0.01         # Timestep multiplier 
 
 variable        xi equal 0.0014         # Mesh size (m)   #$# USER INPUT Must match output from the builder
 
@@ -53,14 +53,14 @@ variable        Lcrit equal $(1.90*v_Lmax)
 variable        Lfc equal 0.004125404
 
 variable        fc equal 0.002                      # Critical force at which bonds break
-variable        Kmax equal 3.487                    # Stiffness at bond failure   #$# USER INPUT Must match output from the builder
+variable        Kmax equal 3.487                 # Stiffness at bond failure   #$# USER INPUT Must match output from the builder  3.487
 
 #---------------------------------------------------------------------
 # Pairwise Potential Parameters 
 #---------------------------------------------------------------------
 
 variable        rscreen equal $(0.15*v_ell)       # Screening length (governs pairwise decay lengthscale) 0.1818
-variable        Apair equal $(v_Energy/15)          # Energy scale for pairwise forces
+variable        Apair equal $(0*v_Energy/15)          # Energy scale for pairwise forces
 variable	    cutoff_rep equal ${ell}	            # Length at which repulsion force is zero & no longer checked
 
 #---------------------------------------------------------------------
@@ -82,10 +82,11 @@ variable        kd_bar equal $(v_kd0/(v_B+1))
 #---------------------------------------------------------------------
 # Define bond properties (nonlinear springs)
 #---------------------------------------------------------------------
-variable	    R equal 0
+variable	R equal 0.0014
+variable	Lcrit2 equal $(0.92*(v_Lcrit - v_R))
 bond_style      nonlinear
-bond_coeff      1 ${Energy} ${R} ${Lcrit}
-bond_coeff      2 ${Energy} ${R} ${Lcrit}
+bond_coeff      1 ${Energy} ${R} ${Lcrit2}
+bond_coeff      2 ${Energy} ${R} ${Lcrit2}
 #---------------------------------------------------------------------
 # Define pairwise repulsion
 #---------------------------------------------------------------------
@@ -111,14 +112,14 @@ variable        dt equal $(v_alpha*sqrt(c_minmass/v_Kmax))
 # Loading parameters
 #---------------------------------------------------------------------
 variable        erate equal $(v_Wi*v_kd0)           #Engineering strain rate
-variable        lammax equal 1.1                   #desired stretch #$# USER INPUT
+variable        lammax equal 3.0                   #desired stretch #$# USER INPUT
 
 variable        H0 equal $(yhi-ylo)                 #inital height
 variable        H equal yhi-ylo
 variable        Hf equal $(v_H0*v_lammax)           #final height
 
 variable        Nrun equal $(ceil((v_lammax-1)/v_erate/v_dt))
-variable        nout equal $(ceil(v_Nrun/200))
+variable        nout equal $(ceil(v_Nrun/50))
 variable        nthermo equal $(ceil(v_nout/10))
 
 #############################################
@@ -126,7 +127,7 @@ variable        nthermo equal $(ceil(v_nout/10))
 #############################################
 
 # for inter-processor communication
-neighbor        $(2.5*v_ell) bin
+neighbor        $(1.5*v_ell) bin
 neigh_modify    page 1000000 one 100000 #exclude molecule/intra all
 
 #---------------------------------------------------------------------
@@ -194,7 +195,7 @@ fix             integrate all nve
 #fix             damp all viscous $(c_minmass*v_chi/v_dt)
 
 # Damping (manual)
-variable        gamma equal 0.00094
+variable        gamma equal 0.00025 #0.00094
 fix             damp all viscous $(v_gamma)
 
 # Equilibrate
@@ -224,10 +225,8 @@ group           ifixatom variable iatom
 #### Setup final thermo and computes
 ####################################
 
-# Setup bond dynamics
-#fix             dynamic all bond/dynamic 1 1 2 ${ka0} ${kd_bar} ${Lmax} maxbond 8 critical ${Lfc} catch ${f0} ${f0} ${B}
+#fix             dynamics all bond/dynamic 1 1 2 ${ka0} ${kd_bar} ${Lmax} maxbond 8 critical ${Lfc} catch ${f0} ${f0} ${B}
 fix             permanent all bond/dynamic 1 1 1 0 0 ${Lmax} maxbond 8 critical ${Lfc}
-
 
 # Fix simulation in the y direction
 change_box      all boundary f f p
@@ -240,7 +239,7 @@ compute         Pbond all reduce sum c_6[*]
 variable        H equal yhi-ylo
 variable        lamy equal v_H/v_H0
 
-# Compute energy
+# Potential bond energy
 compute         PE all pe
 compute         PE_b all pe bond
 compute         KE all ke
@@ -266,12 +265,12 @@ thermo_modify	flush yes lost warn lost/bond warn
 
 reset_timestep  0 time 0
 variable        vtime equal time
-fix             printS all print 1 "${vtime} ${H} ${lamy} ${Pb1} ${Pb2} ${Pb12} ${nbtype1} ${nbtype2} ${poteng} ${bondeng} ${kineng}" file Energy.out screen no title ""
+fix             printS all print 1 "${vtime} ${H} ${lamy} ${Pb1} ${Pb2} ${Pb12} ${nbtype1} ${poteng} ${bondeng} ${kineng}" file Energy.out screen no title ""
 run             0
 unfix           printS
 
 ### First outputs to files ###
-fix             printS all print ${nout} "${vtime} ${H} ${lamy} ${Pb1} ${Pb2} ${Pb12} ${nbtype1} ${nbtype2} ${poteng} ${bondeng} ${kineng}" append Energy.out screen no title ""
+fix             printS all print ${nout} "${vtime} ${H} ${lamy} ${Pb1} ${Pb2} ${Pb12} ${nbtype1} ${poteng} ${bondeng} ${kineng}" append Energy.out screen no title ""
 dump            mydump all custom ${nout} atoms.dump id type mol x y
 dump 		    bondsdump all local ${nout} bonds.dump c_1[*] c_2[*]
 dump_modify     mydump first yes
@@ -286,10 +285,10 @@ unfix           stretch
 
 ### Apply deformation ###
 
-dump_modify     mydump every $(50*v_nout)
-dump_modify     bondsdump every $(50*v_nout)
+#dump_modify     mydump every $(10*v_nout)
+#dump_modify     bondsdump every $(10*v_nout)
 
-thermo          $(10*v_nthermo)
+#thermo          $(10*v_nthermo)
 
-fix             dynamic all bond/dynamic 1 1 2 ${ka0} ${kd_bar} ${Lmax} maxbond 8 critical ${Lfc} catch ${f0} ${f0} ${B}
-run             $(ceil(50*v_Nrun))
+#fix             dynamic all bond/dynamic 1 1 2 ${ka0} ${kd_bar} ${Lmax} maxbond 8 critical ${Lfc} catch ${f0} ${f0} ${B}
+#run             $(ceil(50*v_Nrun))

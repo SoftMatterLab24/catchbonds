@@ -158,11 +158,11 @@ thermo_modify	flush yes lost warn lost/bond warn
 # Initialize bond topology at experimentally-measured rates for proper initial conditions
 timestep        $(v_dt)
 
-fix             dynamics all bond/dynamic 1 1 1 $(100*v_ka0) ${kd0} ${Lmax} maxbond 6
+fix             dynamics all bond/dynamic 1 1 1 $(100*v_ka0) ${kd0} ${Lmax} maxbond 8
 run             5000
 unfix           dynamics
 
-set             type 1 bond/fraction 2 0.5 8784554
+set             type 1 bond/fraction 2 0.6 8784554
 
 # Outputs in command window
 thermo_style    custom step atoms v_nbtype1 v_nbtype2 ebond epair pe ke lx ly fmax
@@ -224,11 +224,9 @@ group           ifixatom variable iatom
 #### Setup final thermo and computes
 ####################################
 
-# Define rupture for permanent bonds
-fix             break all bond/break 1 1 ${Lmax}
-
 # Setup bond dynamics
-fix             dynamics all bond/dynamic 1 1 2 ${ka0} ${kd_bar} ${Lmax} maxbond 8 critical ${Lfc} catch ${f0} ${f0} ${B}
+fix             dynamic all bond/dynamic 1 1 2 ${ka0} ${kd_bar} ${Lmax} maxbond 8 critical ${Lfc} catch ${f0} ${f0} ${B}
+fix             permanent all bond/dynamic 1 1 1 0 0 ${Lmax} maxbond 8 critical ${Lfc}
 
 # Fix simulation in the y direction
 change_box      all boundary f f p
