@@ -6,10 +6,10 @@ idefect = 0;    %make a defect (hole)
 
 %%% User Inputs %%%
 %Mesh Size
-xi = 1.4*1e-3;          % Spacing
+xi = 1.1*1e-3;          % Spacing
 
 %Domain length (units xi)
-L = 110;
+L = 75;
 
 %Defect radues (units xi)
 Rdefect = 10;
@@ -82,7 +82,7 @@ end
 disp('Writing to .dat file')
 
 % Begin writing
-fid = fopen('CatchAtoms150.dat','w');
+fid = fopen('11CatchAtoms75x150.dat','w');
 fprintf(fid,'Non-intersecting ant raft\n\n');
 
 % Atoms and bonds

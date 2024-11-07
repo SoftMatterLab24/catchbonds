@@ -85,7 +85,7 @@ pair_coeff      * * #zero $(v_Lcrit*2.0)
 ##### Initialize particles and bond topology
 #############################################
 # Setup bond dynamics (fix the seed so results are same everytime)
-fix              dynamics all bond/dynamic 1 1 1 ${ka0} ${kd_bar} seed 1234 catch ${f0} ${f0} ${B}
+fix              dynamics all bond/dynamic 1 1 1 ${ka0} ${kd_bar} ${Lmax} catch ${f0} ${f0} ${B}
 
 #fix             integrate all nve  #no integration (dont want atoms to move)
 

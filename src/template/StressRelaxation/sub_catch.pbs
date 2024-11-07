@@ -1,7 +1,6 @@
 #!/bin/bash
-#SBATCH -t 0:30:00
+#SBATCH -t 3:00:00
 #SBATCH -N 1 
 #SBATCH -A uco
-#SBATCH -p pdebug
 
-srun -n 112 /g/g20/white272/lammps/build/lmp -in /p/lustre1/white272/CatchRuns/StressRelaxation/CatchV4.in
+srun -n 112 /g/g20/white272/lammps/build/lmp -in /p/lustre1/white272/CatchRuns/StressRelax2/lam1/001/CatchV4.in

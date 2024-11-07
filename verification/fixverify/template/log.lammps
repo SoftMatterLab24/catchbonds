@@ -1,0 +1,310 @@
+LAMMPS (27 Jun 2024)
+OMP_NUM_THREADS environment is not set. Defaulting to 1 thread. (src/comm.cpp:98)
+  using 1 OpenMP thread(s) per MPI task
+### Some general info
+units           si
+dimension       2
+boundary        p p p
+
+#---------------------------------------------------------------------
+# Specify atoms and bond attributes (tells lammps what to store)
+#---------------------------------------------------------------------
+atom_style      bond
+special_bonds 	lj 1 1 1 coul 1 1 1
+newton          on off
+
+#---------------------------------------------------------------------
+# Read in data from .dat file
+#---------------------------------------------------------------------
+read_data      verify_nobonds.dat extra/bond/per/atom 6 extra/special/per/atom 100
+Reading data file ...
+  orthogonal box = (-0.1 -0.1 -0.01) to (0.1 0.1 0.01)
+  4 by 2 by 1 MPI processor grid
+  reading atoms ...
+  2 atoms
+Finding 1-2 1-3 1-4 neighbors ...
+  special bond factors lj:    1        1        1       
+  special bond factors coul:  1        1        1       
+     0 = max # of 1-2 neighbors
+   101 = max # of special neighbors
+  special bonds CPU = 0.000 seconds
+  read_data CPU = 0.006 seconds
+
+#---------------------------------------------------------------------
+# Simulation Parameters
+#---------------------------------------------------------------------
+variable        dt equal 0.1      #timestep
+variable        Nrun equal 0.5e6   #number of steps
+variable        nout equal 1        #output frequency
+mass            * 1e-6
+
+variable        xi equal 0.0014     # Mesh size (m)
+#---------------------------------------------------------------------
+# Communication lengthscales
+#---------------------------------------------------------------------
+variable        ell equal $(v_xi*1.5)   #
+variable        ell equal 0.0020999999999999998702   
+variable        Lmax equal $(v_xi*2.0)	# Maximum dynamic bond formation length
+variable        Lmax equal 0.0027999999999999999716	
+
+#---------------------------------------------------------------------
+# Parameter sweep
+#---------------------------------------------------------------------
+# Efficiency of the catch bond
+variable        catch_eff equal 1.0       #$# CHANGE THIS AIDAN (= 1 is slip, >1 is catch)
+
+#---------------------------------------------------------------------
+# Bond Parameters
+#---------------------------------------------------------------------
+
+# Energy scale governing bond stiffness
+variable        Energy equal 1.0533e-06
+
+# Length at which bond force diverges
+variable        Lcrit equal $(1.90*v_Lmax)
+variable        Lcrit equal 0.0053200000000000000761
+
+# Length at which bond force reaches 200 dynes (and breaks)
+variable        Lfc equal 0.004125404
+
+variable        fc equal 0.002                      # Critical force at which bonds break
+variable        Kmax equal 3.487                    # Stiffness at bond failure   #$# USER INPUT Must match output from the builder
+
+#---------------------------------------------------------------------
+# Bond kinetic parameters
+#---------------------------------------------------------------------
+
+# Experimentally measured kinetic rates in units of [1/s]
+variable        ka0 equal 0.0848
+variable        kd0 equal 0.0074
+
+variable        tauh equal $(1/(v_ka0+v_kd0))
+variable        tauh equal 10.845986984815617404
+
+# Transition state distance (for both slip and catch pathways)
+variable        f0 equal 0.0004                     #$# USER INPUT
+
+variable        B equal $((2.0*v_catch_eff^2)+2*sqrt(v_catch_eff^4-v_catch_eff^2)-1)
+variable        B equal 1
+variable        kd_bar equal $(v_kd0/(v_B+1))
+variable        kd_bar equal 0.0037000000000000001638
+
+#---------------------------------------------------------------------
+# Define bond properties (nonlinear springs)
+#---------------------------------------------------------------------
+variable	    R equal 0
+bond_style      nonlinear
+bond_coeff      1 ${Energy} ${R} ${Lcrit}
+bond_coeff      1 1.0533e-06 ${R} ${Lcrit}
+bond_coeff      1 1.0533e-06 0 ${Lcrit}
+bond_coeff      1 1.0533e-06 0 0.00532
+
+#---------------------------------------------------------------------
+# Define pairwise repulsion
+#---------------------------------------------------------------------
+pair_style      zero $(v_ell)
+pair_style      zero 0.0020999999999999998702
+pair_coeff      * * #zero $(v_Lcrit*2.0)
+
+#############################################
+##### Initialize particles and bond topology
+#############################################
+# Setup bond dynamics (fix the seed so results are same everytime)
+fix              dynamics all bond/dynamic 1 1 1 ${ka0} ${kd_bar} ${Lmax} catch ${f0} ${f0} ${B}
+fix              dynamics all bond/dynamic 1 1 1 0.0848 ${kd_bar} ${Lmax} catch ${f0} ${f0} ${B}
+fix              dynamics all bond/dynamic 1 1 1 0.0848 0.0037 ${Lmax} catch ${f0} ${f0} ${B}
+fix              dynamics all bond/dynamic 1 1 1 0.0848 0.0037 0.0028 catch ${f0} ${f0} ${B}
+fix              dynamics all bond/dynamic 1 1 1 0.0848 0.0037 0.0028 catch 0.0004 ${f0} ${B}
+fix              dynamics all bond/dynamic 1 1 1 0.0848 0.0037 0.0028 catch 0.0004 0.0004 ${B}
+fix              dynamics all bond/dynamic 1 1 1 0.0848 0.0037 0.0028 catch 0.0004 0.0004 1
+
+#fix             integrate all nve  #no integration (dont want atoms to move)
+
+# for inter-processor communication
+neighbor        ${ell} bin
+neighbor        0.0021 bin
+neigh_modify    page 1000000 one 100000
+
+# Compute bond informations
+compute         1 all property/local btype batom1 batom2
+compute         2 all bond/local dist force engpot
+compute         3 all count/type bond
+compute         4 all reduce max c_2[2] inputs local
+compute         5 all reduce sum c_1[1] inputs local
+variable        force equal c_4
+variable        nbtype1 equal c_3[1]
+
+## Outputs
+variable        vtime equal time
+fix             printS all print 1 "${vtime} ${nbtype1} ${force}" file force.out screen no title ""
+run             0
+
+CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE
+
+Your simulation uses code contributions which should be cited:
+
+- Type Label Framework: https://doi.org/10.1021/acs.jpcb.3c08419
+
+@Article{Gissinger24,
+ author = {Jacob R. Gissinger, Ilia Nikiforov, Yaser Afshar, Brendon Waters, Moon-ki Choi, Daniel S. Karls, Alexander Stukowski, Wonpil Im, Hendrik Heinz, Axel Kohlmeyer, and Ellad B. Tadmor},
+ title = {Type Label Framework for Bonded Force Fields in LAMMPS},
+ journal = {J. Phys. Chem. B},
+ year =    2024,
+ volume =  128,
+ number =  13,
+ pages =   {3282–-3297}
+}
+
+CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE
+
+WARNING: No fixes with time integration, atoms won't move (src/verlet.cpp:60)
+Generated 0 of 0 mixed pair_coeff terms from geometric mixing rule
+Neighbor list info ...
+  update: every = 1 steps, delay = 0 steps, check = yes
+  max neighbors/atom: 100000, page size: 1000000
+  master list distance cutoff = 0.0042
+  ghost atom cutoff = 0.0042
+  binsize = 0.0021, bins = 96 96 10
+  2 neighbor lists, perpetual/occasional/extra = 1 1 0
+  (1) pair zero, perpetual
+      attributes: half, newton on
+      pair build: half/bin/newton
+      stencil: half/bin/2d
+      bin: standard
+  (2) fix bond/dynamic, occasional, copy from (1)
+      attributes: half, newton on
+      pair build: copy
+      stencil: none
+      bin: none
+Per MPI rank memory allocation (min/avg/max) = 15.42 | 15.44 | 15.55 Mbytes
+   Step          Temp          E_pair         E_mol          TotEng         Press     
+         0   0              0              0              0              0            
+Loop time of 3.1875e-06 on 8 procs for 0 steps with 2 atoms
+
+58.8% CPU use with 8 MPI tasks x 1 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0          | 0          | 0          |   0.0 |  0.00
+Bond    | 0          | 0          | 0          |   0.0 |  0.00
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0          | 0          | 0          |   0.0 |  0.00
+Output  | 0          | 0          | 0          |   0.0 |  0.00
+Modify  | 0          | 0          | 0          |   0.0 |  0.00
+Other   |            | 3.187e-06  |            |       |100.00
+
+Nlocal:           0.25 ave           2 max           0 min
+Histogram: 7 0 0 0 0 0 0 0 0 1
+Nghost:           0.75 ave           2 max           0 min
+Histogram: 5 0 0 0 0 0 0 0 0 3
+Neighs:          0.125 ave           1 max           0 min
+Histogram: 7 0 0 0 0 0 0 0 0 1
+
+Total # of neighbors = 1
+Ave neighs/atom = 0.5
+Ave special neighs/atom = 0
+Neighbor list builds = 0
+Dangerous builds = 0
+unfix           printS
+
+thermo          10000
+
+### First outputs to files ###
+fix             printS all print 1 "${vtime} ${nbtype1} ${force}" append force.out screen no title ""
+
+#Dumps (dont output unless for debug - slows down simulations)
+#dump            mydump all custom ${nout} atoms.dump id type mol x y
+#dump 		    bondsdump all local ${nout} bonds.dump c_1[*] c_2[*]
+
+#dump_modify     mydump first yes
+#dump_modify     bondsdump first yes
+
+### Run Simulation ##
+timestep        ${dt}
+timestep        0.1
+run             ${Nrun}
+run             500000
+WARNING: No fixes with time integration, atoms won't move (src/verlet.cpp:60)
+Generated 0 of 0 mixed pair_coeff terms from geometric mixing rule
+Per MPI rank memory allocation (min/avg/max) = 15.42 | 15.44 | 15.55 Mbytes
+   Step          Temp          E_pair         E_mol          TotEng         Press     
+         0   0              0              0              0              0            
+     10000   0              0              2.9852193e-07  2.9852193e-07 -9.5781945e-06
+     20000   0              0              2.9852193e-07  2.9852193e-07 -9.5781945e-06
+     30000   0              0              2.9852193e-07  2.9852193e-07 -9.5781945e-06
+     40000   0              0              2.9852193e-07  2.9852193e-07 -9.5781945e-06
+     50000   0              0              2.9852193e-07  2.9852193e-07 -9.5781945e-06
+     60000   0              0              2.9852193e-07  2.9852193e-07 -9.5781945e-06
+     70000   0              0              0              0              0            
+     80000   0              0              2.9852193e-07  2.9852193e-07 -9.5781945e-06
+     90000   0              0              2.9852193e-07  2.9852193e-07 -9.5781945e-06
+    100000   0              0              2.9852193e-07  2.9852193e-07 -9.5781945e-06
+    110000   0              0              0              0              0            
+    120000   0              0              2.9852193e-07  2.9852193e-07 -9.5781945e-06
+    130000   0              0              0              0              0            
+    140000   0              0              2.9852193e-07  2.9852193e-07 -9.5781945e-06
+    150000   0              0              0              0              0            
+    160000   0              0              2.9852193e-07  2.9852193e-07 -9.5781945e-06
+    170000   0              0              2.9852193e-07  2.9852193e-07 -9.5781945e-06
+    180000   0              0              2.9852193e-07  2.9852193e-07 -9.5781945e-06
+    190000   0              0              0              0              0            
+    200000   0              0              2.9852193e-07  2.9852193e-07 -9.5781945e-06
+    210000   0              0              2.9852193e-07  2.9852193e-07 -9.5781945e-06
+    220000   0              0              0              0              0            
+    230000   0              0              2.9852193e-07  2.9852193e-07 -9.5781945e-06
+    240000   0              0              2.9852193e-07  2.9852193e-07 -9.5781945e-06
+    250000   0              0              2.9852193e-07  2.9852193e-07 -9.5781945e-06
+    260000   0              0              2.9852193e-07  2.9852193e-07 -9.5781945e-06
+    270000   0              0              2.9852193e-07  2.9852193e-07 -9.5781945e-06
+    280000   0              0              2.9852193e-07  2.9852193e-07 -9.5781945e-06
+    290000   0              0              2.9852193e-07  2.9852193e-07 -9.5781945e-06
+    300000   0              0              2.9852193e-07  2.9852193e-07 -9.5781945e-06
+    310000   0              0              2.9852193e-07  2.9852193e-07 -9.5781945e-06
+    320000   0              0              2.9852193e-07  2.9852193e-07 -9.5781945e-06
+    330000   0              0              2.9852193e-07  2.9852193e-07 -9.5781945e-06
+    340000   0              0              2.9852193e-07  2.9852193e-07 -9.5781945e-06
+    350000   0              0              2.9852193e-07  2.9852193e-07 -9.5781945e-06
+    360000   0              0              0              0              0            
+    370000   0              0              0              0              0            
+    380000   0              0              2.9852193e-07  2.9852193e-07 -9.5781945e-06
+    390000   0              0              2.9852193e-07  2.9852193e-07 -9.5781945e-06
+    400000   0              0              2.9852193e-07  2.9852193e-07 -9.5781945e-06
+    410000   0              0              2.9852193e-07  2.9852193e-07 -9.5781945e-06
+    420000   0              0              2.9852193e-07  2.9852193e-07 -9.5781945e-06
+    430000   0              0              2.9852193e-07  2.9852193e-07 -9.5781945e-06
+    440000   0              0              2.9852193e-07  2.9852193e-07 -9.5781945e-06
+    450000   0              0              2.9852193e-07  2.9852193e-07 -9.5781945e-06
+    460000   0              0              2.9852193e-07  2.9852193e-07 -9.5781945e-06
+    470000   0              0              2.9852193e-07  2.9852193e-07 -9.5781945e-06
+    480000   0              0              2.9852193e-07  2.9852193e-07 -9.5781945e-06
+    490000   0              0              2.9852193e-07  2.9852193e-07 -9.5781945e-06
+    500000   0              0              2.9852193e-07  2.9852193e-07 -9.5781945e-06
+Loop time of 73.1603 on 8 procs for 500000 steps with 2 atoms
+
+90.4% CPU use with 8 MPI tasks x 1 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.04501    | 0.05025    | 0.076559   |   4.5 |  0.07
+Bond    | 0.041331   | 0.047144   | 0.06734    |   4.0 |  0.06
+Neigh   | 2.0075     | 2.3888     | 2.6595     |  17.3 |  3.27
+Comm    | 4.908      | 54.824     | 62.633     | 254.9 | 74.94
+Output  | 0.0049586  | 0.01162    | 0.012583   |   2.3 |  0.02
+Modify  | 7.8013     | 15.661     | 65.178     | 473.4 | 21.41
+Other   |            | 0.177      |            |       |  0.24
+
+Nlocal:           0.25 ave           2 max           0 min
+Histogram: 7 0 0 0 0 0 0 0 0 1
+Nghost:           0.75 ave           2 max           0 min
+Histogram: 5 0 0 0 0 0 0 0 0 3
+Neighs:          0.125 ave           1 max           0 min
+Histogram: 7 0 0 0 0 0 0 0 0 1
+
+Total # of neighbors = 1
+Ave neighs/atom = 0.5
+Ave special neighs/atom = 1
+Neighbor list builds = 500000
+Dangerous builds = 0
+Total wall time: 0:01:13
