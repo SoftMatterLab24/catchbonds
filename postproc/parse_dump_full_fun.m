@@ -1,4 +1,4 @@
-function [x,y,id,ty,mol,natoms,bAtom1,bAtom2,bType,bLength,bForce,bForcex,bForcey,bForcez,bEngpot,xlims,ylims,zlims] = parse_dump_full_fun(afile,bfile)
+function [x,y,z,id,ty,mol,natoms,bAtom1,bAtom2,bType,bLength,bForce,bForcex,bForcey,bForcez,bEngpot,xlims,ylims,zlims,rx,ry,rz] = parse_dump_full_fun(afile,bfile)
 
 %afile = "atomDump.dump";
 %bfile = "bondsDump.dump";
@@ -39,14 +39,14 @@ while 1 == 1
     columns = fgetl(fid);
 
     % Read the rest of the file 
-    C = textscan(fid,'%u %u %u %f %f');
+    C = textscan(fid,'%u %u %u %f %f %f');
 
     id{ii}  = C{1};
     ty{ii}  = C{2};
     mol{ii} = C{3};
     x{ii}   = C{4};
     y{ii}   = C{5};
-    %z{ii}   = 0;
+    z{ii}   = C{6};
 
 end
 
@@ -108,6 +108,22 @@ while 1 == 1
     bForcey{ii} = C{7};
     bForcez{ii} = C{8};
     bEngpot{ii} = C{9};
-end
 
+
+end
 fclose(fid);
+%% Get r_vectors
+for mm = 1:length(bType)
+
+    sortedIDs = NaN(length(id{mm}),1);
+    for ii = 1:length(sortedIDs)
+        sortedIDs(id{mm}(ii)) = ii;
+    end
+    
+        i_index = sortedIDs(bAtom1{mm}(:));
+        j_index = sortedIDs(bAtom2{mm}(:));
+        
+        rx{mm}  = (x{mm}(j_index)-x{mm}(i_index));
+        ry{mm}  = (y{mm}(j_index)-y{mm}(i_index));
+        rz{mm}  = (z{mm}(j_index)-z{mm}(i_index));
+end
