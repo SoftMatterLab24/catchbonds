@@ -1,0 +1,458 @@
+LAMMPS (27 Jun 2024)
+OMP_NUM_THREADS environment is not set. Defaulting to 1 thread. (src/comm.cpp:98)
+  using 1 OpenMP thread(s) per MPI task
+### Some general info
+units           si
+dimension       2
+boundary        f s p
+
+#---------------------------------------------------------------------
+# Specify atoms and bond attributes (tells lammps what to store)
+#---------------------------------------------------------------------
+atom_style      bpm/sphere
+special_bonds 	lj 1 1 1 coul 1 1 1
+newton          on off
+
+#---------------------------------------------------------------------
+# Read in data from .dat file
+#---------------------------------------------------------------------
+bond_style      nonlinear
+read_data       CatchNetwork100.dat extra/bond/per/atom 8 extra/special/per/atom 100  #$# USER INPUT (name of .dat folder)
+Reading data file ...
+  orthogonal box = (-0.0605 -0.0549862 -0.0055) to (0.0605 0.0550033 0.0055)
+  4 by 2 by 1 MPI processor grid
+  reading atoms ...
+  6019 atoms
+  scanning bonds ...
+  16 = max bonds/atom
+  orthogonal box = (-0.0605 -0.054997199 -0.0055) to (0.0605 0.055014299 0.0055)
+  4 by 2 by 1 MPI processor grid
+  reading bonds ...
+  21526 bonds
+Finding 1-2 1-3 1-4 neighbors ...
+  special bond factors lj:    1        1        1       
+  special bond factors coul:  1        1        1       
+     8 = max # of 1-2 neighbors
+   108 = max # of special neighbors
+  special bonds CPU = 0.001 seconds
+  read_data CPU = 0.092 seconds
+
+#---------------------------------------------------------------------
+# Simulation parameters
+#---------------------------------------------------------------------
+variable        chi   equal 0.001         # Damping multiplier
+variable        alpha equal 0.005         # Timestep multiplier 0.01
+
+variable        xi equal 0.0014         # Mesh size (m)   #$# USER INPUT Must match output from the builder
+
+#---------------------------------------------------------------------
+# Communication lengthscales
+#---------------------------------------------------------------------
+variable        ell equal $(v_xi*1.0)   #
+variable        ell equal 0.0013999999999999999858   
+variable        Lmax equal $(v_xi*1.25)	# Maximum dynamic bond formation length
+variable        Lmax equal 0.0017500000000000000364	
+
+#---------------------------------------------------------------------
+# Parameter sweep
+#---------------------------------------------------------------------
+
+# Efficiency of the catch bond
+variable        catch_eff equal 1.0       #$# USER INPUT
+
+# Weissenberg number
+variable        Wi equal 10              #$# USER INPUT
+
+#---------------------------------------------------------------------
+# Bond Parameters
+#---------------------------------------------------------------------
+
+# Energy scale governing bond stiffness
+variable        Energy equal 1.0533e-06
+
+# Length at which bond force diverges
+variable        Lcrit equal $(3.80*v_xi)
+variable        Lcrit equal 0.0053200000000000000761
+
+# Length at which bond force reaches 200 dynes (and breaks)
+variable        Lfc equal 0.0043152             #0.00412540
+
+variable        fc equal 0.002                  # Critical force at which bonds break
+variable        Kmax equal 4.2046               # Stiffness at bond failure   #$# USER INPUT Must match output from the builder
+
+#---------------------------------------------------------------------
+# Pairwise Potential Parameters
+#---------------------------------------------------------------------
+
+variable        rscreen equal $(0.10*v_ell)       # Screening length (governs pairwise decay lengthscale) 0.1818
+variable        rscreen equal 0.00014000000000000001484       
+variable        Apair equal $(v_Energy/10)          # Energy scale for pairwise forces
+variable        Apair equal 1.0532999999999999092e-07          
+variable	    cutoff_rep equal ${ell}	            # Length at which repulsion force is zero & no longer checked
+variable	    cutoff_rep equal 0.0014	            
+
+#---------------------------------------------------------------------
+# Bond kinetic parameters
+#---------------------------------------------------------------------
+
+# Experimentally measured kinetic rates in units of [1/s]
+variable        ka0 equal 0.00848   #was 0.0848
+variable        kd0 equal 0.00074   #was 0.0074
+
+variable        tauh equal $(1/(v_ka0+v_kd0))
+variable        tauh equal 108.45986984815618825
+
+# Transition state distance (for both slip and catch pathways)
+variable        f0 equal 0.0004                     #$# USER INPUT
+
+variable        B equal $((2.0*v_catch_eff^2)+2*sqrt(v_catch_eff^4-v_catch_eff^2)-1)
+variable        B equal 1
+variable        kd_bar equal $(v_kd0/(v_B+1))
+variable        kd_bar equal 0.00036999999999999999469
+
+#---------------------------------------------------------------------
+# Define bond properties (nonlinear springs)
+#---------------------------------------------------------------------
+variable	    R equal 0.0014  #0.0014
+variable	    Lcrit2 equal $((v_Lcrit - v_R))  #0.92
+variable	    Lcrit2 equal 0.0039199999999999998734  
+bond_style      nonlinear
+bond_coeff      1 ${Energy} ${R} ${Lcrit2}
+bond_coeff      1 1.0533e-06 ${R} ${Lcrit2}
+bond_coeff      1 1.0533e-06 0.0014 ${Lcrit2}
+bond_coeff      1 1.0533e-06 0.0014 0.00392
+bond_coeff      2 ${Energy} ${R} ${Lcrit2}
+bond_coeff      2 1.0533e-06 ${R} ${Lcrit2}
+bond_coeff      2 1.0533e-06 0.0014 ${Lcrit2}
+bond_coeff      2 1.0533e-06 0.0014 0.00392
+#---------------------------------------------------------------------
+# Define pairwise repulsion
+#---------------------------------------------------------------------
+variable	    kappa equal $(1.0/v_rscreen)
+variable	    kappa equal 7142.857142857143117
+pair_style      hybrid/overlay yukawa ${kappa} $(1.2*v_cutoff_rep) zero $(v_Lcrit*2.5)
+pair_style      hybrid/overlay yukawa 7142.85714285714 $(1.2*v_cutoff_rep) zero $(v_Lcrit*2.5)
+pair_style      hybrid/overlay yukawa 7142.85714285714 0.0016799999999999998528 zero $(v_Lcrit*2.5)
+pair_style      hybrid/overlay yukawa 7142.85714285714 0.0016799999999999998528 zero 0.013299999999999999323
+pair_coeff      * * yukawa $(v_Apair) $(1.2*v_cutoff_rep)
+pair_coeff      * * yukawa 1.0533000000000000416e-07 $(1.2*v_cutoff_rep)
+pair_coeff      * * yukawa 1.0533000000000000416e-07 0.0016799999999999998528
+pair_coeff      * * zero $(v_Lcrit*2.5)  # Added pairwise cutoff distance for communication
+pair_coeff      * * zero 0.013299999999999999323  
+
+####################################
+#### Derived Simulation Parameters
+####################################
+# Calculate minimum mass
+compute         getmass all property/atom mass
+compute         minmass all reduce min c_getmass
+
+run             0
+
+CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE
+
+Your simulation uses code contributions which should be cited:
+
+- Type Label Framework: https://doi.org/10.1021/acs.jpcb.3c08419
+
+@Article{Gissinger24,
+ author = {Jacob R. Gissinger, Ilia Nikiforov, Yaser Afshar, Brendon Waters, Moon-ki Choi, Daniel S. Karls, Alexander Stukowski, Wonpil Im, Hendrik Heinz, Axel Kohlmeyer, and Ellad B. Tadmor},
+ title = {Type Label Framework for Bonded Force Fields in LAMMPS},
+ journal = {J. Phys. Chem. B},
+ year =    2024,
+ volume =  128,
+ number =  13,
+ pages =   {3282–-3297}
+}
+
+CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE
+
+WARNING: No fixes with time integration, atoms won't move (src/verlet.cpp:60)
+Generated 0 of 0 mixed pair_coeff terms from geometric mixing rule
+Neighbor list info ...
+  update: every = 1 steps, delay = 0 steps, check = yes
+  max neighbors/atom: 2000, page size: 100000
+  master list distance cutoff = 0.0143
+  ghost atom cutoff = 0.0143
+  binsize = 0.00715, bins = 17 16 2
+  2 neighbor lists, perpetual/occasional/extra = 2 0 0
+  (1) pair yukawa, perpetual, trim from (2)
+      attributes: half, newton on, cut 0.00268
+      pair build: trim
+      stencil: none
+      bin: none
+  (2) pair zero, perpetual
+      attributes: half, newton on
+      pair build: half/bin/newton
+      stencil: half/bin/2d
+      bin: standard
+Per MPI rank memory allocation (min/avg/max) = 15.28 | 15.48 | 15.67 Mbytes
+   Step          Temp          E_pair         E_mol          TotEng         Press          Volume    
+         0   0              0.00011075341  0.00026214319  0.00037289659 -0.015883356    0.01330873   
+Loop time of 2.85e-06 on 8 procs for 0 steps with 6019 atoms
+
+114.0% CPU use with 8 MPI tasks x 1 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0          | 0          | 0          |   0.0 |  0.00
+Bond    | 0          | 0          | 0          |   0.0 |  0.00
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0          | 0          | 0          |   0.0 |  0.00
+Output  | 0          | 0          | 0          |   0.0 |  0.00
+Modify  | 0          | 0          | 0          |   0.0 |  0.00
+Other   |            | 2.85e-06   |            |       |100.00
+
+Nlocal:        752.375 ave         956 max         541 min
+Histogram: 4 0 0 0 0 0 0 0 0 4
+Nghost:        1044.88 ave        1373 max         715 min
+Histogram: 4 0 0 0 0 0 0 0 0 4
+Neighs:        4305.12 ave        5622 max        2905 min
+Histogram: 3 1 0 0 0 0 0 0 0 4
+
+Total # of neighbors = 34441
+Ave neighs/atom = 5.7220469
+Ave special neighs/atom = 7.1526832
+Neighbor list builds = 0
+Dangerous builds = 0
+reset_timestep  0 time 0
+
+# Calculate timestep
+variable        dt equal $(v_alpha*sqrt(c_minmass/v_Kmax))
+variable        dt equal 3.0764068118605054805e-05
+
+#---------------------------------------------------------------------
+# Loading parameters
+#---------------------------------------------------------------------
+variable        erate equal $(v_Wi*v_kd0)           #Engineering strain rate
+variable        erate equal 0.0074000000000000003275           
+variable        lammax equal 2.0                   #desired stretch #$# USER INPUT
+
+variable        H0 equal $(yhi-ylo)                 #inital height
+variable        H0 equal 0.10998950229958001645                 
+variable        H equal yhi-ylo
+variable        Hf equal $(v_H0*v_lammax)           #final height
+variable        Hf equal 0.21997900459916000515           
+
+variable        Nrun equal $(ceil((v_lammax-1)/v_erate/v_dt))
+variable        Nrun equal 4392629
+variable        nout equal $(ceil(v_Nrun/50))
+variable        nout equal 87853
+variable        nthermo equal $(ceil(v_nout/10))
+variable        nthermo equal 8786
+
+variable        Nrunrelax equal $(3.0*ceil(1/(v_kd0*10*v_dt)))
+variable        Nrunrelax equal 13177887
+variable        nout2 equal $(ceil(v_Nrunrelax/100))
+variable        nout2 equal 131779
+variable        nthermo2 equal $(ceil(v_nout2/10))
+variable        nthermo2 equal 13178
+
+#############################################
+##### Initialize particles and bond topology
+#############################################
+
+# for inter-processor communication
+neighbor        $(1.5*v_ell) bin
+neighbor        0.0020999999999999998702 bin
+neigh_modify    page 1000000 one 100000 #exclude molecule/intra all
+
+#---------------------------------------------------------------------
+# Setup computes
+#---------------------------------------------------------------------
+
+# Compute bond informations
+compute         1 all property/local btype batom1 batom2
+compute         2 all bond/local dist force fx fy fz engpot
+compute         3 all count/type bond
+compute         4 all reduce max c_2[1] inputs local
+compute         5 all reduce sum c_1[1] inputs local
+variable        Bmax equal c_4
+variable        nbtype1 equal c_3[1]
+variable        nbtype2 equal c_3[2]
+
+#---------------------------------------------------------------------
+# Setup thermos
+#---------------------------------------------------------------------
+
+# Outputs in command window
+thermo_style    custom step atoms v_nbtype1 ebond epair pe ke
+thermo          $(v_nthermo)
+thermo          8786
+thermo_modify	flush yes lost warn lost/bond warn
+
+#---------------------------------------------------------------------
+# Setup BC
+#---------------------------------------------------------------------
+
+### Define groups ###
+region		    top block INF INF $(yhi-v_H0/30.0) INF INF INF units box
+region		    top block INF INF 0.051336984406470671793 INF INF INF units box
+region		    bot block INF INF INF $(ylo+v_H0/30.0)  INF INF units box
+region		    bot block INF INF INF -0.051319884406470672733  INF INF units box
+group		    top_atoms region top
+220 atoms in group top_atoms
+group		    bot_atoms region bot
+223 atoms in group bot_atoms
+group       	top_atoms include molecule
+220 atoms in group top_atoms
+group       	bot_atoms include molecule
+223 atoms in group bot_atoms
+group       	bulk_atoms subtract all top_atoms bot_atoms
+5576 atoms in group bulk_atoms
+group       	boundary_atoms subtract all bulk_atoms
+443 atoms in group boundary_atoms
+
+
+# Boundary conditions
+fix             top_zero top_atoms setforce NULL 0.0 0.0
+fix             bot_zero bot_atoms setforce NULL 0.0 0.0
+fix             integrate all nve
+
+# Damping (auto)
+#fix             damp all viscous $(c_minmass*v_chi/v_dt)
+variable         gamma_a equal $(c_minmass*v_chi/v_dt)
+variable         gamma_a equal 0.0051740240324594658286
+
+# Damping (manual)
+variable        gamma equal 0.00030 #0.00025 #0.00094
+fix             damp all viscous $(v_gamma)
+fix             damp all viscous 0.00029999999999999997372
+
+####################################
+#### Setup final thermo and computes
+####################################
+reset_timestep  0 time 0
+fix             2dfix all enforce2d
+fix             dynamics all bond/dynamic 1 1 2 0 0 ${Lmax} maxbond 8 critical ${Lfc}
+fix             dynamics all bond/dynamic 1 1 2 0 0 0.00175 maxbond 8 critical ${Lfc}
+fix             dynamics all bond/dynamic 1 1 2 0 0 0.00175 maxbond 8 critical 0.0043152
+fix             permanent all bond/dynamic 1 1 1 0 0 ${Lmax} maxbond 8 critical ${Lfc}
+fix             permanent all bond/dynamic 1 1 1 0 0 0.00175 maxbond 8 critical ${Lfc}
+fix             permanent all bond/dynamic 1 1 1 0 0 0.00175 maxbond 8 critical 0.0043152
+
+# Fix simulation in the y direction
+change_box      all boundary f f p
+Changing box ...
+
+# Compute 'press' stress on each atom and sum throughout system
+compute         6 all stress/atom NULL
+compute         Pbond all reduce sum c_6[*]
+
+# Define stretch in the y direction
+variable        H equal yhi-ylo
+variable        lamy equal v_H/v_H0
+
+# Potential bond energy
+compute         PE all pe
+compute         PE_b all pe bond
+compute         KE all ke
+
+variable        poteng equal c_PE
+variable        bondeng equal c_PE_b
+variable        kineng equal c_KE
+
+# Stress variables
+variable        Pb1 equal c_Pbond[1]
+variable        Pb2 equal c_Pbond[2]
+variable        Pb12 equal c_Pbond[4]
+
+# Outputs in command window
+variable        vfmax equal fmax
+thermo_style    custom step atoms v_nbtype1 v_nbtype2 v_bondeng epair pe ke v_lamy v_Bmax v_vfmax v_Pb2
+WARNING: New thermo_style command, previous thermo_modify settings will be lost (src/output.cpp:904)
+thermo          $(v_nthermo)
+thermo          8786
+thermo_modify	flush yes lost warn lost/bond warn
+
+####################################
+#### Apply deformation
+####################################
+
+reset_timestep  0 time 0
+variable        vtime equal time
+fix             printS all print 1 "${vtime} ${H} ${lamy} ${Pb1} ${Pb2} ${Pb12} ${nbtype1} ${nbtype2} ${poteng} ${bondeng} ${kineng}" file Energy.out screen no title ""
+run             0
+Generated 0 of 0 mixed pair_coeff terms from geometric mixing rule
+Neighbor list info ...
+  update: every = 1 steps, delay = 0 steps, check = yes
+  max neighbors/atom: 100000, page size: 1000000
+  master list distance cutoff = 0.0154
+  ghost atom cutoff = 0.0154
+  binsize = 0.0077, bins = 16 15 2
+  4 neighbor lists, perpetual/occasional/extra = 2 2 0
+  (1) pair yukawa, perpetual, trim from (2)
+      attributes: half, newton on, cut 0.0037799999999999995
+      pair build: trim
+      stencil: none
+      bin: none
+  (2) pair zero, perpetual
+      attributes: half, newton on
+      pair build: half/bin/newton
+      stencil: half/bin/2d
+      bin: standard
+  (3) fix bond/dynamic, occasional, copy from (2)
+      attributes: half, newton on
+      pair build: copy
+      stencil: none
+      bin: none
+  (4) fix bond/dynamic, occasional, copy from (2)
+      attributes: half, newton on
+      pair build: copy
+      stencil: none
+      bin: none
+Per MPI rank memory allocation (min/avg/max) = 30.52 | 30.59 | 30.67 Mbytes
+   Step        Atoms      v_nbtype1      v_nbtype2      v_bondeng        E_pair         PotEng         KinEng         v_lamy         v_Bmax        v_vfmax         v_Pb2     
+         0        6019   8584           12942          0.00026214319  0.00011075341  0.00037289659  0              1              0.0025834429   5.8928599e-05  0.00042318542
+Loop time of 1.20125e-05 on 8 procs for 0 steps with 6019 atoms
+
+110.3% CPU use with 8 MPI tasks x 1 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0          | 0          | 0          |   0.0 |  0.00
+Bond    | 0          | 0          | 0          |   0.0 |  0.00
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0          | 0          | 0          |   0.0 |  0.00
+Output  | 0          | 0          | 0          |   0.0 |  0.00
+Modify  | 0          | 0          | 0          |   0.0 |  0.00
+Other   |            | 1.201e-05  |            |       |100.00
+
+Nlocal:        752.375 ave         956 max         541 min
+Histogram: 4 0 0 0 0 0 0 0 0 4
+Nghost:           1141 ave        1503 max         781 min
+Histogram: 4 0 0 0 0 0 0 0 0 4
+Neighs:         8839.5 ave       11614 max        6104 min
+Histogram: 4 0 0 0 0 0 0 0 0 4
+
+Total # of neighbors = 70716
+Ave neighs/atom = 11.748795
+Ave special neighs/atom = 7.1526832
+Neighbor list builds = 0
+Dangerous builds = 0
+unfix           printS
+
+### First outputs to files ###
+fix             printS all print ${nout} "${vtime} ${H} ${lamy} ${Pb1} ${Pb2} ${Pb12} ${nbtype1} ${nbtype2} ${poteng} ${bondeng} ${kineng}" append Energy.out screen no title ""
+fix             printS all print 87853 "${vtime} ${H} ${lamy} ${Pb1} ${Pb2} ${Pb12} ${nbtype1} ${nbtype2} ${poteng} ${bondeng} ${kineng}" append Energy.out screen no title ""
+dump            mydump all custom ${nout} atoms.dump id type mol x y
+dump            mydump all custom 87853 atoms.dump id type mol x y
+dump 		    bondsdump all local ${nout} bonds.dump c_1[*] c_2[*]
+dump 		    bondsdump all local 87853 bonds.dump c_1[*] c_2[*]
+dump_modify     mydump first yes
+dump_modify     bondsdump first yes
+
+### Apply quick stretch ###
+fix             stretch boundary_atoms deform 1 y erate ${erate}
+fix             stretch boundary_atoms deform 1 y erate 0.0074
+timestep        $(v_dt)
+timestep        3.0764068118605102239e-05
+run             $(ceil(v_Nrun))
+run             4392629
+Generated 0 of 0 mixed pair_coeff terms from geometric mixing rule
+Per MPI rank memory allocation (min/avg/max) = 30.52 | 30.59 | 30.67 Mbytes
+   Step        Atoms      v_nbtype1      v_nbtype2      v_bondeng        E_pair         PotEng         KinEng         v_lamy         v_Bmax        v_vfmax         v_Pb2     
+         0        6019   8584           12942          0.00026214319  0.00011075341  0.00037289659  0              1              0.0025834429   5.8928599e-05  0.00042318542
+      8786        6019   8584           12942          0.00026354658  0.00011005431  0.00037360089  9.093132e-08   1.0020002      0.0026024493   4.4639607e-05  0.00043468573
