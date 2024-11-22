@@ -1,7 +1,7 @@
 clear all; clc
 
 %%% Options %%%
-iplot = 1;      %plot the outpu
+iplot = 0;      %plot the outpu
 idefect = 0;    %make a defect (hole)
 
 %%% User Inputs %%%
@@ -9,7 +9,7 @@ idefect = 0;    %make a defect (hole)
 xi = 1.1*1e-3;          % Spacing
 
 %Domain length (units xi)
-L = 75;
+L = 100;
 
 %Defect radues (units xi)
 Rdefect = 10;
@@ -19,8 +19,8 @@ dia = 1e-3;
 rho = 0.304*1e6;
 
 %%% Size of domain (m) %%%
-Lx  = 2*L*xi;             % Length of x dimension
-Ly  = L*xi;         % Length of y dimension
+Lx  = 3*L*xi;             % Length of x dimension
+Ly  = 1.5*L*xi;         % Length of y dimension
 
 %%% Limits for x and y cps %%%
 ax = (Lx)/2;
@@ -82,14 +82,14 @@ end
 disp('Writing to .dat file')
 
 % Begin writing
-fid = fopen('11CatchAtoms75x150.dat','w');
+fid = fopen('Catch350x150.dat','w');
 fprintf(fid,'Non-intersecting ant raft\n\n');
 
 % Atoms and bonds
 fprintf(fid,'%d atoms\n',natoms);
 % fprintf(fid,'%d bonds\n',nbonds);
 fprintf(fid,'1 atom types\n');
-fprintf(fid,'1 bond types\n');
+fprintf(fid,'2 bond types\n');
 
 % Simulation boundaries
 fprintf(fid,'%g %g xlo xhi\n',-Lx/2 -5*xi,Lx/2 + 5*xi);
